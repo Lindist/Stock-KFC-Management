@@ -40,7 +40,7 @@ export default function SignInPage() {
       const { data, error } = await signIn.email({
         email,
         password,
-        callbackURL: "/dashboard",
+        callbackURL: "/",
       });
 
       if (error) {
@@ -48,7 +48,7 @@ export default function SignInPage() {
         return;
       }
       toast.success("เข้าสู่ระบบสำเร็จ");
-      router.push("/dashboard");
+      router.push("/");
     } catch {
       toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {

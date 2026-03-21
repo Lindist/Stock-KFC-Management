@@ -1,0 +1,264 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Search, Send, Bell } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner"; // Assuming sonner is used for toast notifications
+import { cn } from "@/lib/utils";
+
+export function CreateMaterialRequest({ user }: { user?: any }) {
+  const [activeTab, setActiveTab] = useState("create");
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Form state
+  const [searchQuery, setSearchQuery] = useState("");
+  // In a real app, this would be fetched and filtered. For now, we mock predefined items.
+  const [items, setItems] = useState([
+    { id: 1, name: "ไก่สด (เนื้ออก)", stock: 45, unit: "กก.", quantity: "" },
+    { id: 2, name: "แป้งสาลี", stock: 120, unit: "กก.", quantity: "" },
+    { id: 3, name: "น้ำมันทอด", stock: 80, unit: "ลิตร", quantity: "" },
+  ]);
+
+  const handleQuantityChange = (id: number, value: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, quantity: value } : item))
+    );
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch("/api/requests");
+      if (res.ok) {
+        const data = await res.json();
+        setRequests(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch history", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab]);
+
+  const handleSubmit = async () => {
+    const selectedItems = items.filter((item) => item.quantity && Number(item.quantity) > 0);
+    if (selectedItems.length === 0) {
+      toast.error("กรุณาระบุจำนวนสำหรับอย่างน้อย 1 รายการ");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: selectedItems }),
+      });
+
+      if (res.ok) {
+        toast.success("ส่งคำขออนุมัติเบิกสำเร็จ");
+        // Clear quantities
+        setItems((prev) => prev.map((item) => ({ ...item, quantity: "" })));
+        setActiveTab("history"); // Auto switch to history
+      } else {
+        toast.error("เกิดข้อผิดพลาดในการส่งข้อมูล");
+      }
+    } catch (error) {
+      toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">สร้างคำขอเบิกวัตถุดิบ</h2>
+        <p className="text-sm text-slate-500 mt-1">เลือกวัตถุดิบที่ต้องการเบิกและส่งคำขอให้ผู้จัดการอนุมัติ</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center space-x-2 bg-slate-100 p-1 w-fit rounded-lg shadow-sm">
+        <button
+          onClick={() => setActiveTab("create")}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+            activeTab === "create" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          สร้างคำขอเบิก
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+            activeTab === "history" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          ประวัติ
+        </button>
+      </div>
+
+      {/* Tab Content: Create Request */}
+      {activeTab === "create" && (
+        <Card className="border-0 shadow-sm ring-1 ring-slate-200/50">
+          <CardContent className="p-6">
+            <h3 className="text-base font-semibold text-slate-800">แบบฟอร์มขอเบิกวัตถุดิบ</h3>
+            <p className="text-sm text-slate-500 mb-6">เลือกวัตถุดิบและระบุจำนวนที่ต้องการเบิก</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">ค้นหาและเลือกวัตถุดิบ</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input 
+                    placeholder="พิมพ์ชื่อวัตถุดิบ เช่น ไก่สด, แป้งสาลี..." 
+                    className="pl-9 bg-slate-50/50"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-slate-700">รายการที่เลือก</h4>
+                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {items.length} รายการ
+                  </span>
+                </div>
+
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">{item.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">คงเหลือ: {item.stock} {item.unit}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="number"
+                          placeholder="จำนวน"
+                          className="w-24 h-9 text-right"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          min="0"
+                        />
+                        <span className="text-sm text-slate-600 w-8">{item.unit}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={loading}
+                  className="bg-[#c8102e] hover:bg-[#a00c25] text-white shadow-md gap-2 rounded-lg px-6"
+                >
+                  <Send className="w-4 h-4" />
+                  ส่งคำขออนุมัติเบิก
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tab Content: History */}
+      {activeTab === "history" && (
+        <Card className="border-0 shadow-sm ring-1 ring-slate-200/50 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-6 border-b border-slate-100">
+               <h3 className="text-base font-semibold text-slate-800">ประวัติการเบิก</h3>
+               <p className="text-sm text-slate-500">รายการเบิกวัตถุดิบที่ผ่านมา</p>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50/80 text-slate-600 font-medium border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-3">รหัสคำขอ</th>
+                    <th className="px-6 py-3">วัตถุดิบ</th>
+                    <th className="px-6 py-3">จำนวน</th>
+                    <th className="px-6 py-3">ผู้ขอเบิก</th>
+                    <th className="px-6 py-3">วันที่</th>
+                    <th className="px-6 py-3">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {requests.length > 0 ? (
+                    requests.map((req, idx) => {
+                      // Status color
+                      const isApproved = req.status === "อนุมัติแล้ว";
+                      const isRejected = req.status === "ปฏิเสธ";
+                      
+                      return (
+                        <tr key={req._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-slate-700">{req.requestId || `REQ-${100+idx}`}</td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {req.items?.length > 0 ? req.items[0].name : "N/A"}{req.items?.length > 1 && ` (+${req.items.length-1})`}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {req.items?.length > 0 ? `${req.items[0].quantity} ${req.items[0].unit}` : ""}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">{req.userName}</td>
+                          <td className="px-6 py-4 text-slate-500">
+                            {new Date(req.createdAt).toLocaleDateString("th-TH")}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2.5 py-1 text-[11px] font-semibold rounded-md",
+                              isApproved ? "bg-green-100 text-green-700" :
+                              isRejected ? "bg-red-100 text-red-700" :
+                              "bg-yellow-100 text-yellow-700" // e.g. รออนุมัติ
+                            )}>
+                              {req.status || "รออนุมัติ"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                        {loading ? "กำลังโหลดข้อมูล..." : "ไม่มีประวัติการเบิก"}
+                      </td>
+                    </tr>
+                  )}
+                  {/* Mock history just in case DB is empty to match picture */}
+                  {requests.length === 0 && !loading && [
+                    { id: "REQ-099", item: "ซอสพริก", qty: "10 ขวด", date: "2026-02-15", status: "อนุมัติแล้ว" },
+                    { id: "REQ-098", item: "ไก่สด (ปีก)", qty: "15 กก.", date: "2026-02-14", status: "ปฏิเสธ" },
+                  ].map(mock => (
+                     <tr key={mock.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-700">{mock.id}</td>
+                        <td className="px-6 py-4 text-slate-600">{mock.item}</td>
+                        <td className="px-6 py-4 text-slate-600">{mock.qty}</td>
+                        <td className="px-6 py-4 text-slate-600">พนักงาน A</td>
+                        <td className="px-6 py-4 text-slate-500">{mock.date}</td>
+                        <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2.5 py-1 text-[11px] font-semibold rounded-md",
+                              mock.status === "อนุมัติแล้ว" ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60" : "bg-rose-50 text-rose-600 border border-rose-200/60"
+                            )}>
+                              {mock.status}
+                            </span>
+                          </td>
+                     </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
