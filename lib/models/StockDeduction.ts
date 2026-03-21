@@ -6,6 +6,8 @@ export interface IStockDeduction extends Document {
   user_id: string;     // FK → User.user_id
   deduct_qty: number;
   deduct_time: Date;
+  status: "pending" | "approved" | "rejected";
+  note?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -15,7 +17,6 @@ const StockDeductionSchema = new Schema<IStockDeduction>(
     transaction_id: {
       type: String,
       required: true,
-      unique: true,
       maxlength: 15,
     },
     item_id: {
@@ -39,6 +40,16 @@ const StockDeductionSchema = new Schema<IStockDeduction>(
       type: Date,
       required: true,
       default: Date.now,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      required: true,
+    },
+    note: {
+      type: String,
+      maxlength: 255,
     },
   },
   {

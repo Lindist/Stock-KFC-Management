@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Send, Bell } from "lucide-react";
+import { Search, Send, Bell, Package, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,14 +15,34 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
 
   // Form state
   const [searchQuery, setSearchQuery] = useState("");
-  // In a real app, this would be fetched and filtered. For now, we mock predefined items.
-  const [items, setItems] = useState([
-    { id: 1, name: "ไก่สด (เนื้ออก)", stock: 45, unit: "กก.", quantity: "" },
-    { id: 2, name: "แป้งสาลี", stock: 120, unit: "กก.", quantity: "" },
-    { id: 3, name: "น้ำมันทอด", stock: 80, unit: "ลิตร", quantity: "" },
-  ]);
+  const [items, setItems] = useState<any[]>([]);
 
-  const handleQuantityChange = (id: number, value: string) => {
+  // Fetch ingredients from API
+  useEffect(() => {
+    const fetchIngredients = async () => {
+      try {
+        const res = await fetch("/api/ingredients");
+        if (res.ok) {
+          const data = await res.json();
+          // Map to local format for form
+          setItems(data.map((ing: any) => ({
+            id: ing._id,
+            item_id: ing.item_id,
+            name: ing.item_name,
+            stock: ing.current_qty,
+            unit: ing.unit,
+            quantity: ""
+          })));
+        }
+      } catch (e) {
+        console.error("Failed to fetch ingredients", e);
+      }
+    };
+    
+    fetchIngredients();
+  }, []);
+
+  const handleQuantityChange = (id: string, value: string) => {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, quantity: value } : item))
     );
@@ -55,10 +75,16 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
 
     setLoading(true);
     try {
+      // Map for the backend schema which expects `item_id`
+      const payloadItems = selectedItems.map(item => ({
+        item_id: item.item_id,
+        quantity: item.quantity
+      }));
+
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: selectedItems }),
+        body: JSON.stringify({ items: payloadItems }),
       });
 
       if (res.ok) {
@@ -134,11 +160,17 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                 </div>
 
                 <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                  {items.map((item) => (
+                {items.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>ไม่พบรายการวัตถุดิบ</p>
+                  </div>
+                ) : (
+                  items.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.item_id.toLowerCase().includes(searchQuery.toLowerCase())).map((item) => (
                     <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                       <div>
                         <div className="text-sm font-medium text-slate-800">{item.name}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">คงเหลือ: {item.stock} {item.unit}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">[{item.item_id}] คงเหลือ: {item.stock} {item.unit}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Input 
@@ -152,7 +184,8 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                         <span className="text-sm text-slate-600 w-8">{item.unit}</span>
                       </div>
                     </div>
-                  ))}
+                  ))
+                )}
                 </div>
               </div>
 
@@ -228,7 +261,11 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                        {loading ? "กำลังโหลดข้อมูล..." : "ไม่มีประวัติการเบิก"}
+                        {loading ? "กำลังโหลดข้อมูล..." : 
+                        <div className="text-center py-8 text-slate-500">
+                          <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p>ไม่มีประวัติการเบิก</p>
+                        </div>}
                       </td>
                     </tr>
                   )}
