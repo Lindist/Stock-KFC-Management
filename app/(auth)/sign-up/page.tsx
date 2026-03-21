@@ -17,12 +17,12 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 
-type Role = "admin" | "manager" | "staff";
+type Role = "manager" | "store" | "staff";
 
 const ROLES: { value: Role; label: string; desc: string; Icon: React.ElementType }[] = [
   { value: "staff",   label: "พนักงาน",  desc: "สต็อกของแต่ละวันประจำวัน",  Icon: Users    },
-  { value: "manager", label: "Store",    desc: "ตรวจสอบสต็อกทุกสาขา",      Icon: Store    },
-  { value: "admin",   label: "ผู้จัดการ", desc: "ดูแล+จัดการระบบทั้งหมด",   Icon: Settings },
+  { value: "store", label: "Store",    desc: "ตรวจสอบสต็อกทุกสาขา",      Icon: Store    },
+  { value: "manager",   label: "ผู้จัดการ", desc: "ดูแล+จัดการระบบทั้งหมด",   Icon: Settings },
 ];
 
 export default function SignUpPage() {
