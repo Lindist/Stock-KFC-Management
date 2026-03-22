@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Camera, Eye, EyeOff, Loader2, User } from "lucide-react";
 import { authClient } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,18 +11,30 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 
 interface ProfileEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: any;
+  onProfileUpdated?: (user: any) => void;
 }
 
-export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialogProps) {
+export function ProfileEditDialog({
+  open,
+  onOpenChange,
+  user,
+  onProfileUpdated,
+}: ProfileEditDialogProps) {
+  type ProfileUpdatePayload = {
+    name: string;
+    phone: string;
+    image: string;
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(user?.name || "");
@@ -39,18 +51,19 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
 
   const [saving, setSaving] = useState(false);
 
-  // Sync props to state when dialog opens
   useEffect(() => {
-    if (open) {
-      setName(user?.name || "");
-      setPhone(user?.phone || "");
-      setImageUrl(user?.image || "");
-      setAvatarPreview(null);
-      setAvatarFile(null);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    }
+    if (!open) return;
+
+    setName(user?.name || "");
+    setPhone(user?.phone || "");
+    setImageUrl(user?.image || "");
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowCurrentPw(false);
+    setShowNewPw(false);
   }, [open, user]);
 
   const email = user?.email || "";
@@ -60,14 +73,17 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       toast.error("รองรับเฉพาะไฟล์ JPG, PNG, WEBP");
       return;
     }
+
     if (file.size > 2 * 1024 * 1024) {
       toast.error("ไฟล์ต้องมีขนาดไม่เกิน 2MB");
       return;
     }
+
     setAvatarFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setAvatarPreview(reader.result as string);
@@ -80,16 +96,17 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
       return;
     }
 
-    // Password validation
     if (newPassword || confirmPassword || currentPassword) {
       if (!currentPassword) {
         toast.error("กรุณากรอกรหัสผ่านปัจจุบัน");
         return;
       }
+
       if (newPassword.length < 8) {
         toast.error("รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร");
         return;
       }
+
       if (newPassword !== confirmPassword) {
         toast.error("รหัสผ่านใหม่ไม่ตรงกัน");
         return;
@@ -97,40 +114,41 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
     }
 
     setSaving(true);
+
     try {
       let finalImageUrl = imageUrl;
 
-      // Upload new avatar if selected
       if (avatarFile) {
         const formData = new FormData();
         formData.append("file", avatarFile);
-        const uploadRes = await fetch("/api/upload-avatar", { method: "POST", body: formData });
+
+        const uploadRes = await fetch("/api/upload-avatar", {
+          method: "POST",
+          body: formData,
+        });
         const uploadData = await uploadRes.json();
+
         if (!uploadRes.ok) {
           toast.error(uploadData.error || "อัปโหลดรูปไม่สำเร็จ");
           return;
         }
+
         finalImageUrl = uploadData.url;
       }
 
-      // Update profile info
-      const profileRes = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
-          image: finalImageUrl,
-        }),
-      });
+      const updatePayload: ProfileUpdatePayload = {
+        name: name.trim(),
+        phone: phone.trim(),
+        image: finalImageUrl,
+      };
 
-      if (!profileRes.ok) {
-        const errData = await profileRes.json();
-        toast.error(errData.error || "อัปเดตโปรไฟล์ไม่สำเร็จ");
+      const updateRes = await authClient.updateUser(updatePayload as any);
+
+      if (updateRes.error) {
+        toast.error(updateRes.error.message || "อัปเดตโปรไฟล์ไม่สำเร็จ");
         return;
       }
 
-      // Change password if provided
       if (newPassword && currentPassword) {
         const pwRes = await authClient.changePassword({
           currentPassword,
@@ -144,10 +162,24 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
         }
       }
 
+      const authUser =
+        ((updateRes.data as { user?: Record<string, unknown> } | null | undefined)?.user ?? {}) as Record<
+          string,
+          unknown
+        >;
+
+      const updatedUser = {
+        ...user,
+        ...authUser,
+        name: name.trim(),
+        phone: phone.trim(),
+        image: finalImageUrl,
+      };
+
+      setImageUrl(finalImageUrl);
+      onProfileUpdated?.(updatedUser);
       toast.success("อัปเดตโปรไฟล์สำเร็จ");
       onOpenChange(false);
-      // Reload page to get fresh session data
-      window.location.reload();
     } catch {
       toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
@@ -157,12 +189,17 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
 
   const displayImage = avatarPreview || imageUrl;
   const initials = name
-    ? name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
+    ? name
+        .split(" ")
+        .map((part: string) => part[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
     : "?";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">แก้ไขโปรไฟล์</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
@@ -171,20 +208,19 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Avatar */}
           <div className="flex justify-center">
-            <div className="relative group">
+            <div className="group relative">
               <div
-                className="w-20 h-20 rounded-full border-2 border-gray-200 flex items-center justify-center overflow-hidden bg-gray-100 cursor-pointer transition-all hover:border-[#C8102E] hover:shadow-md"
+                className="flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-gray-200 bg-gray-100 transition-all hover:border-[#C8102E] hover:shadow-md"
                 onClick={() => fileInputRef.current?.click()}
               >
                 {displayImage ? (
-                  <img src={displayImage} alt="avatar" className="w-full h-full object-cover" />
+                  <img src={displayImage} alt="avatar" className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-lg font-bold text-gray-500">{initials}</span>
                 )}
-                <div className="absolute inset-0 bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="w-5 h-5 text-white" />
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Camera className="h-5 w-5 text-white" />
                 </div>
               </div>
               <input
@@ -197,7 +233,6 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
             </div>
           </div>
 
-          {/* Name */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">ชื่อ-นามสกุล</Label>
             <Input
@@ -208,7 +243,6 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
             />
           </div>
 
-          {/* Phone */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">เบอร์โทรศัพท์</Label>
             <Input
@@ -220,32 +254,21 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
             />
           </div>
 
-          {/* Email (read-only) */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">อีเมล</Label>
-            <Input
-              value={email}
-              disabled
-              className="h-9 bg-muted/50 text-muted-foreground"
-            />
+            <Input value={email} disabled className="h-9 bg-muted/50 text-muted-foreground" />
           </div>
 
-          {/* Role (read-only) */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-muted-foreground">สิทธิ์การใช้งาน</Label>
-            <Input
-              value={roleLabel}
-              disabled
-              className="h-9 bg-muted/50 text-muted-foreground"
-            />
+            <Input value={roleLabel} disabled className="h-9 bg-muted/50 text-muted-foreground" />
           </div>
 
           <Separator />
 
-          {/* Password Change */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-700">เปลี่ยนรหัสผ่าน</h4>
-            <p className="text-xs text-muted-foreground">เว้นว่างไว้หากไม่ต้องการเปลี่ยน</p>
+            <p className="text-xs text-muted-foreground">ปล่อยว่างไว้หากไม่ต้องการเปลี่ยน</p>
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">รหัสผ่านปัจจุบัน</Label>
@@ -259,15 +282,15 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
                 />
                 <button
                   type="button"
-                  onClick={() => setShowCurrentPw(!showCurrentPw)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowCurrentPw((prev) => !prev)}
+                  className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">รหัสผ่านใหม่</Label>
                 <div className="relative">
@@ -280,13 +303,14 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
                   />
                   <button
                     type="button"
-                    onClick={() => setShowNewPw(!showNewPw)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowNewPw((prev) => !prev)}
+                    className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">ยืนยันรหัสผ่านใหม่</Label>
                 <Input
@@ -301,7 +325,6 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex justify-end gap-2 pt-2">
           <Button
             variant="outline"
@@ -314,9 +337,9 @@ export function ProfileEditDialog({ open, onOpenChange, user }: ProfileEditDialo
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="h-9 bg-[#C8102E] hover:bg-[#a50d26] text-white"
+            className="h-9 bg-[#C8102E] text-white hover:bg-[#a50d26]"
           >
-            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             บันทึก
           </Button>
         </div>
