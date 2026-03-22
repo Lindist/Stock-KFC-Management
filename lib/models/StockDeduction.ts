@@ -28,7 +28,7 @@ const StockDeductionSchema = new Schema<IStockDeduction>(
     user_id: {
       type: String,
       required: true,
-      maxlength: 10,
+      maxlength: 30,
       ref: "User",
     },
     deduct_qty: {

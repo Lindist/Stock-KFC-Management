@@ -236,10 +236,22 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                         <tr key={req._id || idx} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4 font-medium text-slate-700">{req.requestId || `REQ-${100+idx}`}</td>
                           <td className="px-6 py-4 text-slate-600">
-                            {req.items?.length > 0 ? req.items[0].name : "N/A"}{req.items?.length > 1 && ` (+${req.items.length-1})`}
+                            {req.items?.length > 0 ? (
+                              <div className="space-y-1">
+                                {req.items.map((item: any, i: number) => (
+                                  <div key={i}>{item.name}</div>
+                                ))}
+                              </div>
+                            ) : "N/A"}
                           </td>
                           <td className="px-6 py-4 text-slate-600">
-                            {req.items?.length > 0 ? `${req.items[0].quantity} ${req.items[0].unit}` : ""}
+                            {req.items?.length > 0 ? (
+                              <div className="space-y-1">
+                                {req.items.map((item: any, i: number) => (
+                                  <div key={i}>{item.quantity} {item.unit}</div>
+                                ))}
+                              </div>
+                            ) : ""}
                           </td>
                           <td className="px-6 py-4 text-slate-600">{req.userName}</td>
                           <td className="px-6 py-4 text-slate-500">
