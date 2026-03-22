@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Store, Settings, Users } from "lucide-react";
+import { ChevronLeft, Store, Settings, Users, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ const ROLES: { value: Role; label: string; desc: string; Icon: React.ElementType
 
 export default function SignUpPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
@@ -34,10 +35,34 @@ export default function SignUpPage() {
     password: "",
     role: "staff" as Role,
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const set = (field: keyof typeof form, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("รองรับเฉพาะไฟล์ JPG, PNG, WEBP");
+      return;
+    }
+
+    // Validate size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("ไฟล์ต้องมีขนาดไม่เกิน 2MB");
+      return;
+    }
+
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +76,24 @@ export default function SignUpPage() {
     }
     setLoading(true);
     try {
+      let imageUrl = "";
+
+      // Upload avatar if selected
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("file", avatarFile);
+        const uploadRes = await fetch("/api/upload-avatar", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          toast.error(uploadData.error || "อัปโหลดรูปไม่สำเร็จ");
+          return;
+        }
+        imageUrl = uploadData.url;
+      }
+
       // better-auth requires email — store username as username@kfc.local
       const email = `${form.username.trim()}@kfc.local`;
 
@@ -58,9 +101,9 @@ export default function SignUpPage() {
         email,
         password: form.password,
         name: form.full_name.trim(),
-        // additionalFields จาก auth.ts
         phone: form.phone.trim(),
         role: form.role,
+        image: imageUrl,
       } as Parameters<typeof signUp.email>[0]);
 
       if (error) {
@@ -93,6 +136,50 @@ export default function SignUpPage() {
         {/* Form */}
         <CardContent className="px-8 py-7">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Avatar Upload */}
+            <div className="flex justify-center">
+              <div className="relative group">
+                <div
+                  className="w-20 h-20 rounded-full border-3 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 cursor-pointer transition-all duration-200 hover:border-[#C8102E] hover:bg-[#C8102E]/5"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Camera className="w-6 h-6 text-gray-400 group-hover:text-[#C8102E] transition-colors" />
+                      <span className="text-[9px] text-gray-400 group-hover:text-[#C8102E] transition-colors">อัปโหลดรูป</span>
+                    </div>
+                  )}
+                </div>
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAvatarFile(null);
+                      setAvatarPreview(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
+                  >
+                    ×
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
+            </div>
+
             {/* Full Name */}
             <div className="space-y-1.5">
               <Label htmlFor="signup-fullname" className="text-gray-700 font-medium">
