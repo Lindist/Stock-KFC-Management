@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart2,
   Bell,
@@ -38,30 +37,41 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const mainMenu = [
-  { name: "แดชบอร์ด", href: "/dashboard", icon: LayoutDashboard, badge: 0 },
-  { name: "คลังวัตถุดิบ", href: "/inventory", icon: Package, badge: 0 },
-  { name: "ตัดสต็อก/อนุมัติ", href: "/approve", icon: ClipboardList, badge: 3 },
-  { name: "ตั้งค่าแจ้งเตือน", href: "/notifications", icon: Bell, badge: 0 },
-];
+export const managerMainMenu = [
+  { id: "dashboard", name: "แดชบอร์ด", icon: LayoutDashboard, badge: 0 },
+  { id: "warehouse", name: "คลังวัตถุดิบ", icon: Package, badge: 0 },
+  { id: "withdraw", name: "ตัดสต๊อก/อนุมัติ", icon: ClipboardList, badge: 3 },
+  { id: "notifications", name: "ตั้งค่าแจ้งเตือน", icon: Bell, badge: 0 },
+] as const;
 
-const orderMenu = [
-  { name: "ใบสั่งซื้อ", href: "/orders", icon: ShoppingCart, badge: 2 },
-  { name: "รับวัตถุดิบ", href: "/receive", icon: Truck, badge: 0 },
-  { name: "รายงาน", href: "/reports", icon: BarChart2, badge: 0 },
-];
+export const managerOrderMenu = [
+  { id: "purchase-orders", name: "ใบสั่งซื้อ", icon: ShoppingCart, badge: 2 },
+  { id: "import-materials", name: "รับวัตถุดิบ", icon: Truck, badge: 0 },
+  { id: "stock-report", name: "รายงาน", icon: BarChart2, badge: 0 },
+] as const;
 
-export function SidebarMenu({ user }: { user?: any }) {
-  const pathname = usePathname();
+export type ManagerMenuItemId =
+  | (typeof managerMainMenu)[number]["id"]
+  | (typeof managerOrderMenu)[number]["id"];
+
+type SidebarMenuProps = {
+  user?: SidebarUser;
+  activeItem: ManagerMenuItemId;
+  onSelect: (itemId: ManagerMenuItemId) => void;
+};
+
+type SidebarUser = {
+  email?: string | null;
+  image?: string | null;
+  name?: string | null;
+  role?: string | null;
+};
+
+export function SidebarMenu({ user, activeItem, onSelect }: SidebarMenuProps) {
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [cachedUser, setCachedUser] = useState(user);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const initials = cachedUser?.name
     ? cachedUser.name
@@ -92,23 +102,6 @@ export function SidebarMenu({ user }: { user?: any }) {
     }
   };
 
-  const profileButton = (
-    <SidebarMenuButton size="lg" className="cursor-pointer">
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={displayName} className="h-8 w-8 shrink-0 rounded-lg object-cover" />
-      ) : (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-medium text-sidebar-primary-foreground">
-          {initials}
-        </div>
-      )}
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-px group-data-[collapsible=icon]:hidden">
-        <span className="w-full truncate text-xs font-semibold">{displayName}</span>
-        <span className="w-full truncate text-[10px] text-sidebar-foreground/70">{displayRole}</span>
-      </div>
-      <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
-    </SidebarMenuButton>
-  );
-
   return (
     <>
       <Sidebar variant="sidebar" className="z-50 shadow-lg">
@@ -116,11 +109,13 @@ export function SidebarMenu({ user }: { user?: any }) {
           <SidebarHeader className="border-b border-sidebar-border p-4 pb-2">
             <div className="flex items-center gap-3 px-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-                <span className="text-lg leading-none font-black">H</span>
+                <span className="text-lg font-black leading-none">H</span>
               </div>
               <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                 <h1 className="truncate text-sm font-bold leading-tight tracking-wide">KFC StockFlow</h1>
-                <p className="truncate text-[10px] font-medium text-sidebar-foreground/70">จัดการคลังวัตถุดิบ</p>
+                <p className="truncate text-[10px] font-medium text-sidebar-foreground/70">
+                  จัดการคลังวัตถุดิบ
+                </p>
               </div>
             </div>
           </SidebarHeader>
@@ -132,33 +127,24 @@ export function SidebarMenu({ user }: { user?: any }) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <UIMenu>
-                  {mainMenu.map((item) => {
-                    const isActive =
-                      item.href === "/dashboard" && pathname === "/"
-                        ? true
-                        : pathname?.startsWith(item.href);
-
-                    return (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.name}
-                          className="my-0.5 font-medium"
-                        >
-                          <Link href={item.href}>
-                            <item.icon className="h-[18px] w-[18px]" />
-                            <span>{item.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {item.badge > 0 && (
-                          <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
-                            {item.badge}
-                          </SidebarMenuBadge>
-                        )}
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {managerMainMenu.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        isActive={activeItem === item.id}
+                        tooltip={item.name}
+                        className="my-0.5 font-medium"
+                        onClick={() => onSelect(item.id)}
+                      >
+                        <item.icon className="h-[18px] w-[18px]" />
+                        <span>{item.name}</span>
+                      </SidebarMenuButton>
+                      {item.badge > 0 && (
+                        <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
                 </UIMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -169,30 +155,24 @@ export function SidebarMenu({ user }: { user?: any }) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <UIMenu>
-                  {orderMenu.map((item) => {
-                    const isActive = pathname?.startsWith(item.href);
-
-                    return (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          tooltip={item.name}
-                          className="my-0.5 font-medium"
-                        >
-                          <Link href={item.href}>
-                            <item.icon className="h-[18px] w-[18px]" />
-                            <span>{item.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {item.badge > 0 && (
-                          <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
-                            {item.badge}
-                          </SidebarMenuBadge>
-                        )}
-                      </SidebarMenuItem>
-                    );
-                  })}
+                  {managerOrderMenu.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        isActive={activeItem === item.id}
+                        tooltip={item.name}
+                        className="my-0.5 font-medium"
+                        onClick={() => onSelect(item.id)}
+                      >
+                        <item.icon className="h-[18px] w-[18px]" />
+                        <span>{item.name}</span>
+                      </SidebarMenuButton>
+                      {item.badge > 0 && (
+                        <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
                 </UIMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -201,36 +181,54 @@ export function SidebarMenu({ user }: { user?: any }) {
           <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:p-2">
             <UIMenu>
               <SidebarMenuItem>
-                {mounted ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>{profileButton}</DropdownMenuTrigger>
-                    <DropdownMenuContent side="top" align="start" className="w-56 rounded-xl shadow-lg">
-                      <div className="px-3 py-2.5">
-                        <p className="truncate text-sm font-semibold">{displayName}</p>
-                        <p className="truncate text-xs text-muted-foreground">{cachedUser?.email}</p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="peer/menu-button group/menu-button flex h-12 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
+                    data-sidebar="menu-button"
+                  >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="h-8 w-8 shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-medium text-sidebar-primary-foreground">
+                        {initials}
                       </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setProfileOpen(true)}
-                        className="cursor-pointer gap-2 py-2"
-                      >
-                        <UserPen className="h-4 w-4" />
-                        <span>แก้ไขโปรไฟล์</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={handleLogout}
-                        disabled={loggingOut}
-                        className="cursor-pointer gap-2 py-2 text-red-600 focus:bg-red-50 focus:text-red-600"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>{loggingOut ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  profileButton
-                )}
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-px group-data-[collapsible=icon]:hidden">
+                      <span className="w-full truncate text-xs font-semibold">{displayName}</span>
+                      <span className="w-full truncate text-[10px] text-sidebar-foreground/70">
+                        {displayRole}
+                      </span>
+                    </div>
+                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" className="w-56 rounded-xl shadow-lg">
+                    <div className="px-3 py-2.5">
+                      <p className="truncate text-sm font-semibold">{displayName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{cachedUser?.email}</p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setProfileOpen(true)}
+                      className="cursor-pointer gap-2 py-2"
+                    >
+                      <UserPen className="h-4 w-4" />
+                      <span>แก้ไขโปรไฟล์</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="cursor-pointer gap-2 py-2 text-red-600 focus:bg-red-50 focus:text-red-600"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>{loggingOut ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </SidebarMenuItem>
             </UIMenu>
           </SidebarFooter>
