@@ -1,15 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { 
-  Users,
-  UserPlus,
-  BookOpen,
-  ArrowLeft,
-  ChevronDown 
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { BookOpen, ChevronDown, LayoutDashboard, LogOut, UserPen, UserPlus, Users } from "lucide-react";
+import { useState } from "react";
+import { signOut } from "@/lib/auth/auth-client";
+import { ProfileEditDialog } from "@/components/profile-edit-dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -19,90 +14,171 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu as UIMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuBadge,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-const supplierMenu = [
-  { name: "รายชื่อซัพพลายเออร์", href: "/suppliers/list", icon: Users, badge: 0 },
-  { name: "เพิ่มซัพพลายเออร์", href: "/suppliers/add", icon: UserPlus, badge: 0 },
-  { name: "หมวดหมู่วัตถุดิบ", href: "/suppliers/categories", icon: BookOpen, badge: 0 },
-];
+export const supplierMenu = [
+  { id: "dashboard", name: "แดชบอร์ด", icon: LayoutDashboard, badge: 0 },
+  { id: "supplier-list", name: "รายชื่อซัพพลายเออร์", icon: Users, badge: 0 },
+  { id: "supplier-add", name: "เพิ่มซัพพลายเออร์", icon: UserPlus, badge: 0 },
+  { id: "supplier-categories", name: "หมวดหมู่วัตถุดิบ", icon: BookOpen, badge: 0 },
+] as const;
 
-export function SidebarSupplier() {
-  const pathname = usePathname();
+export type SupplierMenuItemId = (typeof supplierMenu)[number]["id"];
+
+type SidebarUser = {
+  email?: string | null;
+  image?: string | null;
+  name?: string | null;
+  role?: string | null;
+};
+
+export function SidebarSupplier({
+  user,
+  activeItem,
+  onSelect,
+}: {
+  user?: SidebarUser;
+  activeItem: SupplierMenuItemId;
+  onSelect: (itemId: SupplierMenuItemId) => void;
+}) {
+  const router = useRouter();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [cachedUser, setCachedUser] = useState(user);
+
+  const initials = cachedUser?.name
+    ? cachedUser.name
+        .split(" ")
+        .map((item) => item[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
+    : "จก";
+
+  const displayName = cachedUser?.name || "สมชาย ใจดี";
+  const displayRole = cachedUser?.role === "admin" ? "ผู้ดูแลระบบ" : cachedUser?.role || "ผู้ดูแลระบบ";
+  const avatarUrl = cachedUser?.image || "";
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await signOut();
+      router.push("/sign-in");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+    }
+  };
 
   return (
-    <Sidebar variant="sidebar" className="shadow-lg z-50">
-      <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
-        {/* Header/Logo section */}
-        <SidebarHeader className="p-4 pb-2 border-b border-sidebar-border">
-          <div className="flex items-center gap-3 px-2">
-            <Link href="/dashboard" className="p-1.5 bg-sidebar-accent rounded-lg hover:bg-sidebar-accent/80 transition-colors shrink-0">
-              <ArrowLeft className="w-5 h-5 text-sidebar-accent-foreground" />
-            </Link>
-            <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-              <h1 className="text-sm font-bold leading-tight tracking-wide truncate">จัดการซัพพลายเออร์</h1>
-              <p className="text-[10px] text-sidebar-foreground/70 font-medium truncate">คู่ค้าและหมวดหมู่</p>
+    <>
+      <Sidebar variant="sidebar" className="z-50 shadow-lg">
+        <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+          <SidebarHeader className="border-b border-sidebar-border p-4 pb-2">
+            <div className="flex items-center gap-3 px-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+                <span className="text-lg font-black leading-none">H</span>
+              </div>
+              <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+                <h1 className="truncate text-sm font-bold leading-tight tracking-wide">KFC StockFlow</h1>
+                <p className="truncate text-[10px] font-medium text-sidebar-foreground/70">
+                  จัดการซัพพลายเออร์
+                </p>
+              </div>
             </div>
-          </div>
-        </SidebarHeader>
+          </SidebarHeader>
 
-        <SidebarContent className="scrollbar-hide py-2">
-          {/* Menu Items */}
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-widest text-[10px] group-data-[collapsible=icon]:hidden">
-              เมนูซัพพลายเออร์
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <UIMenu>
-                {supplierMenu.map((item) => {
-                  const isActive = pathname?.startsWith(item.href);
-                  return (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={isActive} 
+          <SidebarContent className="scrollbar-hide py-2">
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+                เมนูซัพพลายเออร์
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <UIMenu>
+                  {supplierMenu.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        isActive={activeItem === item.id}
                         tooltip={item.name}
-                        className="font-medium my-0.5"
+                        className="my-0.5 font-medium"
+                        onClick={() => onSelect(item.id)}
                       >
-                        <Link href={item.href}>
-                          <item.icon className="w-[18px] h-[18px]" />
-                          <span>{item.name}</span>
-                        </Link>
+                        <item.icon className="h-[18px] w-[18px]" />
+                        <span>{item.name}</span>
                       </SidebarMenuButton>
                       {item.badge > 0 && (
-                        <SidebarMenuBadge className="bg-sidebar-primary text-sidebar-primary-foreground text-[10px] tabular-nums group-data-[collapsible=icon]:hidden">
+                        <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
                           {item.badge}
                         </SidebarMenuBadge>
                       )}
                     </SidebarMenuItem>
-                  );
-                })}
-              </UIMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+                  ))}
+                </UIMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
 
-        {/* User Profile */}
-        <SidebarFooter className="p-4 border-t border-sidebar-border group-data-[collapsible=icon]:p-2">
-          <UIMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg">
-                <div className="flex items-center justify-center w-8 h-8 bg-sidebar-primary text-sidebar-primary-foreground font-medium rounded-lg text-sm shrink-0">
-                  จก
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col items-start gap-px group-data-[collapsible=icon]:hidden">
-                  <span className="text-xs font-semibold truncate w-full">สมชาย ใจดี</span>
-                  <span className="text-[10px] text-sidebar-foreground/70 truncate w-full">ผู้จัดการ</span>
-                </div>
-                <ChevronDown className="w-4 h-4 ml-auto text-sidebar-foreground/70 shrink-0 group-data-[collapsible=icon]:hidden" />
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </UIMenu>
-        </SidebarFooter>
-      </div>
-    </Sidebar>
+          <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:p-2">
+            <UIMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="peer/menu-button group/menu-button flex h-12 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName} className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-medium text-sidebar-primary-foreground">
+                        {initials}
+                      </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-px group-data-[collapsible=icon]:hidden">
+                      <span className="w-full truncate text-xs font-semibold">{displayName}</span>
+                      <span className="w-full truncate text-[10px] text-sidebar-foreground/70">{displayRole}</span>
+                    </div>
+                    <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" className="w-56 rounded-xl shadow-lg">
+                    <div className="px-3 py-2.5">
+                      <p className="truncate text-sm font-semibold">{displayName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{cachedUser?.email}</p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setProfileOpen(true)} className="cursor-pointer gap-2 py-2">
+                      <UserPen className="h-4 w-4" />
+                      <span>แก้ไขโปรไฟล์</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="cursor-pointer gap-2 py-2 text-red-600 focus:bg-red-50 focus:text-red-600"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>{loggingOut ? "กำลังออกจากระบบ..." : "ออกจากระบบ"}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </UIMenu>
+          </SidebarFooter>
+        </div>
+      </Sidebar>
+
+      <ProfileEditDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        user={cachedUser}
+        onProfileUpdated={setCachedUser}
+      />
+    </>
   );
 }
