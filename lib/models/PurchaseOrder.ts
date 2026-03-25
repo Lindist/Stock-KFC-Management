@@ -57,7 +57,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
       type: String,
       required: true,
       maxlength: 20,
-      enum: ["pending", "approved", "received", "cancelled"],
+      enum: ["pending", "received","arrived"],
       default: "pending",
     },
     received_qty: {

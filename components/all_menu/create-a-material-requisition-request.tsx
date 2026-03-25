@@ -282,7 +282,7 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                     </tr>
                   )}
                   {/* Mock history just in case DB is empty to match picture */}
-                  {requests.length === 0 && !loading && [
+                  {/* {requests.length === 0 && !loading && [
                     { id: "REQ-099", item: "ซอสพริก", qty: "10 ขวด", date: "2026-02-15", status: "อนุมัติแล้ว" },
                     { id: "REQ-098", item: "ไก่สด (ปีก)", qty: "15 กก.", date: "2026-02-14", status: "ปฏิเสธ" },
                   ].map(mock => (
@@ -301,7 +301,7 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
                             </span>
                           </td>
                      </tr>
-                  ))}
+                  ))} */}
                 </tbody>
               </table>
             </div>

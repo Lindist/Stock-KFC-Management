@@ -5,6 +5,7 @@ import { CreateMaterialRequest } from "@/components/all_menu/create-a-material-r
 import { Bell } from "lucide-react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { ManagerShell } from "@/components/manager-shell";
+import { getGlobalDashboardData } from "@/lib/dashboard/get-global-dashboard-data";
 
 export default async function Home() {
   const session = await getSession();
@@ -46,5 +47,7 @@ export default async function Home() {
     );
   }
 
-  return <ManagerShell user={user} />;
+  const dashboardData = await getGlobalDashboardData();
+
+  return <ManagerShell user={user} dashboardData={dashboardData} />;
 }
