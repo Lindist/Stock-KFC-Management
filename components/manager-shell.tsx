@@ -13,6 +13,7 @@ import { ImportRawMaterials } from "@/components/all_menu/import-raw-materials";
 import { StockReport } from "@/components/all_menu/stock-report";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
 import { ManagerNotifications } from "@/components/manager-notifications";
+import type { ManagerPhaseData } from "@/lib/types/manager";
 
 const menuMeta = [...managerMainMenu, ...managerOrderMenu];
 
@@ -23,9 +24,11 @@ type ManagerShellUser = {
 export function ManagerShell({
   user,
   dashboardData,
+  managerData,
 }: {
   user?: ManagerShellUser;
   dashboardData: GlobalDashboardData;
+  managerData: ManagerPhaseData | null;
 }) {
   const [activeItem, setActiveItem] = useState<ManagerMenuItemId>("dashboard");
   const [dashboardTab, setDashboardTab] = useState<string>("ingredients");
@@ -39,12 +42,12 @@ export function ManagerShell({
         onTabChange={setDashboardTab}
       />
     ),
-    warehouse: <RawMaterialWarehouse />,
-    withdraw: <WithdrawRawMaterialsFromStock />,
-    notifications: <SetUpNotifications />,
-    "purchase-orders": <PurchaseOrders />,
-    "import-materials": <ImportRawMaterials />,
-    "stock-report": <StockReport />,
+    warehouse: <RawMaterialWarehouse data={managerData} />,
+    withdraw: <WithdrawRawMaterialsFromStock data={managerData} />,
+    notifications: <SetUpNotifications data={managerData} />,
+    "purchase-orders": <PurchaseOrders data={managerData} />,
+    "import-materials": <ImportRawMaterials data={managerData} />,
+    "stock-report": <StockReport data={managerData} />,
   };
 
   return (

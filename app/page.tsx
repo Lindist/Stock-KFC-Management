@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getGlobalDashboardData } from "@/lib/dashboard/get-global-dashboard-data";
+import { getManagerPhaseData } from "@/lib/manager/get-manager-phase-data";
 import { HomeShell } from "@/components/home-shell";
 
 export default async function Home() {
@@ -12,5 +13,7 @@ export default async function Home() {
 
   const user = session.user;
   const dashboardData = await getGlobalDashboardData();
-  return <HomeShell user={user} dashboardData={dashboardData} />;
+  const managerData = user.role === "manager" ? await getManagerPhaseData() : null;
+
+  return <HomeShell user={user} dashboardData={dashboardData} managerData={managerData} />;
 }

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
+import type { ManagerPhaseData } from "@/lib/types/manager";
 
 const ManagerShell = dynamic(
   () => import("@/components/manager-shell").then((mod) => mod.ManagerShell),
@@ -24,9 +25,11 @@ type HomeShellUser = {
 export function HomeShell({
   user,
   dashboardData,
+  managerData,
 }: {
   user: HomeShellUser;
   dashboardData: GlobalDashboardData;
+  managerData: ManagerPhaseData | null;
 }) {
   if (user.role === "staff") {
     return <StaffShell user={user} dashboardData={dashboardData} />;
@@ -36,5 +39,5 @@ export function HomeShell({
     return <SupplierShell user={user} dashboardData={dashboardData} />;
   }
 
-  return <ManagerShell user={user} dashboardData={dashboardData} />;
+  return <ManagerShell user={user} dashboardData={dashboardData} managerData={managerData} />;
 }
