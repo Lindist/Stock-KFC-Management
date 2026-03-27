@@ -54,8 +54,7 @@ const LowStockAlertSchema = new Schema<ILowStockAlert>(
   }
 );
 
-// Indexes
-LowStockAlertSchema.index({ alert_id: 1 });
+// Secondary indexes for alert queries and timeline sorting.
 LowStockAlertSchema.index({ item_id: 1 });
 LowStockAlertSchema.index({ is_read: 1 });
 LowStockAlertSchema.index({ alert_time: -1 });

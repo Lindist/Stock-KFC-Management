@@ -89,7 +89,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
             </div>
-            <Button onClick={confirmAllArrived} className="bg-red-700 text-white hover:bg-red-800">
+            <Button onClick={confirmAllArrived} className="bg-sky-700 text-white hover:bg-sky-800">
               รับครบทั้งหมด
             </Button>
           </div>

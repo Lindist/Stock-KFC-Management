@@ -94,7 +94,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
             <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
             <CardDescription>ปรับค่า threshold รายแถว แล้วบันทึกทั้งหมดด้วยปุ่มเดียวตามที่ต้องการ</CardDescription>
           </div>
-          <Button onClick={() => setIsSaved(true)} className="bg-red-700 text-white hover:bg-red-800">
+          <Button onClick={() => setIsSaved(true)} className="bg-sky-700 text-white hover:bg-sky-800">
             {isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
           </Button>
         </CardHeader>

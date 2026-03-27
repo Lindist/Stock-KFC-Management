@@ -72,8 +72,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
   }
 );
 
-// Indexes
-PurchaseOrderSchema.index({ po_id: 1 });
+// Secondary indexes for filtering and relational lookups.
 PurchaseOrderSchema.index({ item_id: 1 });
 PurchaseOrderSchema.index({ approver_id: 1 });
 PurchaseOrderSchema.index({ po_status: 1 });

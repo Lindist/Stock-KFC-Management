@@ -12,6 +12,7 @@ export interface ManagerIngredientRow {
   cost: number;
   expiryDate: string;
   currentQty: number;
+  maxQty: number;
   stockStatus: IngredientStockStatus;
 }
 

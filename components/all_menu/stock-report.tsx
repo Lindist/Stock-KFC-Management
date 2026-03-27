@@ -158,7 +158,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
           <CardDescription>เลือกประเภท ช่วงเวลา และแสดงรายงานบนหน้าจอพร้อมพิมพ์เอกสารออกมาได้ทันที</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 lg:grid-cols-5">
+          <div className="grid gap-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">ประเภทรายงาน</p>
               <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
@@ -195,12 +195,12 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
               <p className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</p>
               <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={generateReport} className="flex-1 bg-red-700 text-white hover:bg-red-800">
+            <div className="flex flex-col gap-2 sm:flex-row xl:flex-nowrap xl:items-end">
+              <Button onClick={generateReport} className="bg-sky-700 text-white hover:bg-sky-800">
                 <FileBarChart2 className="mr-2 h-4 w-4" />
                 แสดงรายงาน
               </Button>
-              <Button onClick={printReport} className="flex-1 bg-emerald-700 text-white hover:bg-emerald-800">
+              <Button onClick={printReport} className="bg-emerald-700 text-white hover:bg-emerald-800">
                 <Printer className="mr-2 h-4 w-4" />
                 พิมพ์รายงาน
               </Button>

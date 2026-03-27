@@ -25,6 +25,18 @@ const ALERT_TYPES = ["low_stock", "expiry", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
 const IS_READ_VALUES = ["Y", "N"] as const;
 
+function deriveIngredientStockStatus(currentQty: number, maxQty: number): IngredientStockStatus {
+  if (currentQty <= 0) {
+    return "out_of_stock";
+  }
+
+  if (maxQty > 0 && currentQty / maxQty <= 0.2) {
+    return "low_stock";
+  }
+
+  return "in_stock";
+}
+
 function coerceIngredientStockStatus(value: string): IngredientStockStatus {
   return (INGREDIENT_STOCK_STATUSES as readonly string[]).includes(value)
     ? (value as IngredientStockStatus)
@@ -202,7 +214,7 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
     cost: item.cost,
     expiryDate: toIsoString(item.expiry_date),
     currentQty: item.current_qty,
-    stockStatus: coerceIngredientStockStatus(item.stock_status),
+    stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0),
   }));
 
   const stockDeductionRows: StockDeductionDashboardRow[] = stockDeductions.map((item) => ({

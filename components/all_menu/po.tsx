@@ -134,7 +134,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                 <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate} className="bg-red-700 text-white hover:bg-red-800">
+            <Button onClick={openCreate} className="bg-sky-700 text-white hover:bg-sky-800">
               <FilePlus2 className="mr-2 h-4 w-4" />
               เพิ่มใบสั่งซื้อ
             </Button>
@@ -251,7 +251,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
             <Button variant="outline" onClick={() => setOpen(false)}>
               ยกเลิก
             </Button>
-            <Button onClick={saveOrder} className="bg-red-700 text-white hover:bg-red-800">บันทึก</Button>
+            <Button onClick={saveOrder} className="bg-sky-700 text-white hover:bg-sky-800">บันทึก</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

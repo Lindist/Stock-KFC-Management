@@ -30,9 +30,9 @@ function statusLabel(status: StockDeductionStatus) {
   return "รออนุมัติ";
 }
 
-function computeStockStatus(qty: number): IngredientStockStatus {
+function computeStockStatus(qty: number, maxQty: number): IngredientStockStatus {
   if (qty <= 0) return "out_of_stock";
-  if (qty <= 20) return "low_stock";
+  if (maxQty > 0 && qty / maxQty <= 0.2) return "low_stock";
   return "in_stock";
 }
 
@@ -40,7 +40,6 @@ type GroupedRequest = {
   transactionId: string;
   requestedBy: string;
   deductTime: string;
-  status: StockDeductionStatus;
   note: string;
   items: string[];
   totalQty: number;
@@ -49,7 +48,9 @@ type GroupedRequest = {
 export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData | null }) {
   const [ingredients, setIngredients] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
   const [deductions, setDeductions] = useState<ManagerStockDeductionRow[]>(data?.stockDeductions ?? []);
-  const [query, setQuery] = useState("");
+  const [createQuery, setCreateQuery] = useState("");
+  const [pendingQuery, setPendingQuery] = useState("");
+  const [historyQuery, setHistoryQuery] = useState("");
   const [quantityById, setQuantityById] = useState<Record<string, number>>({});
   const [noteById, setNoteById] = useState<Record<string, string>>({});
 
@@ -57,10 +58,10 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
     () =>
       ingredients.filter(
         (item) =>
-          item.itemId.toLowerCase().includes(query.toLowerCase()) ||
-          item.itemName.toLowerCase().includes(query.toLowerCase())
+          item.itemId.toLowerCase().includes(createQuery.toLowerCase()) ||
+          item.itemName.toLowerCase().includes(createQuery.toLowerCase())
       ),
-    [ingredients, query]
+    [ingredients, createQuery]
   );
 
   const pendingGroups = useMemo(() => {
@@ -83,19 +84,33 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
           transactionId: item.transactionId,
           requestedBy: item.requestedBy,
           deductTime: item.deductTime,
-          status: item.status,
           note: item.note ?? "",
           items: [`${item.itemName} x ${item.deductQty}`],
           totalQty: item.deductQty,
         });
       });
 
-    return Array.from(grouped.values());
-  }, [deductions]);
+    return Array.from(grouped.values()).filter(
+      (item) =>
+        item.transactionId.toLowerCase().includes(pendingQuery.toLowerCase()) ||
+        item.requestedBy.toLowerCase().includes(pendingQuery.toLowerCase()) ||
+        item.items.join(" ").toLowerCase().includes(pendingQuery.toLowerCase())
+    );
+  }, [deductions, pendingQuery]);
+
+  const filteredHistory = useMemo(
+    () =>
+      deductions.filter(
+        (item) =>
+          item.transactionId.toLowerCase().includes(historyQuery.toLowerCase()) ||
+          item.itemName.toLowerCase().includes(historyQuery.toLowerCase()) ||
+          item.requestedBy.toLowerCase().includes(historyQuery.toLowerCase())
+      ),
+    [deductions, historyQuery]
+  );
 
   const selectedItems = useMemo(
-    () =>
-      ingredients.filter((item) => (quantityById[item.itemId] ?? 0) > 0),
+    () => ingredients.filter((item) => (quantityById[item.itemId] ?? 0) > 0),
     [ingredients, quantityById]
   );
 
@@ -129,7 +144,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
           return {
             ...item,
             currentQty: nextQty,
-            stockStatus: computeStockStatus(nextQty),
+            stockStatus: computeStockStatus(nextQty, item.maxQty),
           };
         })
       );
@@ -156,7 +171,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
           return {
             ...item,
             currentQty: nextQty,
-            stockStatus: computeStockStatus(nextQty),
+            stockStatus: computeStockStatus(nextQty, item.maxQty),
           };
         })
       );
@@ -172,7 +187,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       <Card className="dashboard-panel rounded-2xl border">
         <CardHeader>
           <CardTitle>ตัดสต็อกและอนุมัติคำขอเบิก</CardTitle>
-          <CardDescription>ค้นหาวัตถุดิบ ระบุจำนวนในรูปแบบตาราง และจัดการรายการรออนุมัติแบบรวมตามเลขที่คำขอ</CardDescription>
+          <CardDescription>ค้นหาวัตถุดิบ ระบุจำนวนในรูปแบบตาราง และค้นหารายการในแท็ปรออนุมัติหรือประวัติได้แยกกัน</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="create" className="gap-6">
@@ -194,7 +209,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
             <TabsContent value="create" className="space-y-4">
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหาด้วยรหัสหรือชื่อวัตถุดิบ" />
+                <Input value={createQuery} onChange={(event) => setCreateQuery(event.target.value)} className="pl-9" placeholder="ค้นหาด้วยรหัสหรือชื่อวัตถุดิบ" />
               </div>
               <Card className="border-red-100 bg-white/90 shadow-sm">
                 <CardContent className="pt-6">
@@ -248,7 +263,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableBody>
                   </Table>
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={() => submitRequest("pending")} variant="outline" className="border-emerald-700 text-emerald-700 hover:bg-emerald-800 hover:text-white">
+                    <Button onClick={() => submitRequest("pending")} className="bg-indigo-700 text-white hover:bg-indigo-800">
                       ส่งรออนุมัติ
                     </Button>
                     <Button onClick={() => submitRequest("approved")} className="bg-emerald-700 text-white hover:bg-emerald-800">
@@ -259,7 +274,11 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
               </Card>
             </TabsContent>
 
-            <TabsContent value="pending">
+            <TabsContent value="pending" className="space-y-4">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input value={pendingQuery} onChange={(event) => setPendingQuery(event.target.value)} className="pl-9" placeholder="ค้นหาเลขที่คำขอ ผู้ขอเบิก หรือวัตถุดิบ" />
+              </div>
               <Card className="border-amber-100 bg-white/90 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">รายการที่รออนุมัติ</CardTitle>
@@ -329,7 +348,11 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
               </Card>
             </TabsContent>
 
-            <TabsContent value="history">
+            <TabsContent value="history" className="space-y-4">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} className="pl-9" placeholder="ค้นหาเลขที่คำขอ ผู้ขอเบิก หรือวัตถุดิบ" />
+              </div>
               <Card className="border-slate-200 bg-white/90 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">ประวัติการตัดสต็อก</CardTitle>
@@ -349,7 +372,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {deductions.map((item, index) => (
+                      {filteredHistory.map((item, index) => (
                         <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-50/60">
                           <TableCell className="font-medium">{item.transactionId}</TableCell>
                           <TableCell>{item.itemName}</TableCell>

@@ -7,6 +7,7 @@ export interface IIngredient extends Document {
   cost: number;
   expiry_date: Date;
   current_qty: number;
+  max_qty: number;
   stock_status: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -45,6 +46,12 @@ const IngredientSchema = new Schema<IIngredient>(
       default: 0,
       min: 0,
     },
+    max_qty: {
+      type: Number,
+      required: true,
+      default: 100,
+      min: 0,
+    },
     stock_status: {
       type: String,
       required: true,
@@ -59,8 +66,7 @@ const IngredientSchema = new Schema<IIngredient>(
   }
 );
 
-// Index for fast lookup
-IngredientSchema.index({ item_id: 1 });
+// Secondary index for filtering inventory by status.
 IngredientSchema.index({ stock_status: 1 });
 
 const Ingredient: Model<IIngredient> =

@@ -27,9 +27,9 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
 }
 
-function computeStockStatus(qty: number): IngredientStockStatus {
+function computeStockStatus(qty: number, maxQty: number): IngredientStockStatus {
   if (qty <= 0) return "out_of_stock";
-  if (qty <= 20) return "low_stock";
+  if (maxQty > 0 && qty / maxQty <= 0.2) return "low_stock";
   return "in_stock";
 }
 
@@ -52,6 +52,7 @@ type IngredientFormState = {
   cost: number;
   expiryDate: string;
   currentQty: number;
+  maxQty: number;
 };
 
 export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }) {
@@ -60,6 +61,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
   const [statusFilter, setStatusFilter] = useState<"all" | IngredientStockStatus>("all");
   const [open, setOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState<IngredientFormState>({
     itemId: "",
     itemName: "",
@@ -67,6 +69,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
     cost: 0,
     expiryDate: "",
     currentQty: 0,
+    maxQty: 0,
   });
 
   const filteredItems = useMemo(
@@ -90,7 +93,9 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
       cost: 0,
       expiryDate: "",
       currentQty: 0,
+      maxQty: 0,
     });
+    setFormError("");
     setOpen(true);
   };
 
@@ -103,17 +108,29 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
       cost: item.cost,
       expiryDate: item.expiryDate.slice(0, 10),
       currentQty: item.currentQty,
+      maxQty: item.maxQty,
     });
+    setFormError("");
     setOpen(true);
   };
 
   const saveItem = () => {
-    if (!form.itemName || !form.unit) return;
+    if (!form.itemName || !form.unit || !form.expiryDate || form.maxQty <= 0) {
+      setFormError("กรุณากรอกข้อมูลให้ครบ และระบุ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ มากกว่า 0");
+      return;
+    }
+
+    if (form.currentQty > form.maxQty) {
+      setFormError("จำนวนคงเหลือต้องไม่มากกว่า จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้");
+      return;
+    }
+
+    setFormError("");
 
     const nextItem: ManagerIngredientRow = {
       ...form,
       expiryDate: form.expiryDate,
-      stockStatus: computeStockStatus(form.currentQty),
+      stockStatus: computeStockStatus(form.currentQty, form.maxQty),
     };
 
     if (editingItemId) {
@@ -134,7 +151,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>คลังวัตถุดิบ</CardTitle>
-            <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบในคลังโดยคำนวณสถานะจากจำนวนคงเหลืออัตโนมัติ</CardDescription>
+            <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบโดยคำนวณสถานะจากสัดส่วนคงเหลือเทียบกับ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-64">
@@ -152,7 +169,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                 <SelectItem value="out_of_stock">หมดสต็อก</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate} className="bg-red-700 text-white hover:bg-red-800">
+            <Button onClick={openCreate} className="bg-sky-700 text-white hover:bg-sky-800">
               <Plus className="mr-2 h-4 w-4" />
               เพิ่มวัตถุดิบลงคลัง
             </Button>
@@ -165,6 +182,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                 <TableHead>รหัส</TableHead>
                 <TableHead>ชื่อวัตถุดิบ</TableHead>
                 <TableHead>คงเหลือ</TableHead>
+                <TableHead><div>จำนวนมากที่สุด</div><div>ที่สามารถเก็บในสต็อกได้</div></TableHead>
                 <TableHead>หน่วย</TableHead>
                 <TableHead>สถานะ</TableHead>
                 <TableHead>วันหมดอายุ</TableHead>
@@ -174,10 +192,11 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => (
-                <TableRow key={item.itemId} className="transition-colors hover:bg-red-50/60">
+                <TableRow key={item.itemId} className="transition-colors hover:bg-sky-50/60">
                   <TableCell className="font-medium">{item.itemId}</TableCell>
                   <TableCell>{item.itemName}</TableCell>
                   <TableCell>{item.currentQty}</TableCell>
+                  <TableCell>{item.maxQty}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell>
                     <Badge className={badgeClass(item.stockStatus)}>{statusLabel(item.stockStatus)}</Badge>
@@ -205,7 +224,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItemId ? "แก้ไขวัตถุดิบ" : "เพิ่มวัตถุดิบลงคลัง"}</DialogTitle>
-            <DialogDescription>กรอกข้อมูลวัตถุดิบ ระบบจะคำนวณสถานะจากจำนวนคงเหลือให้อัตโนมัติ</DialogDescription>
+            <DialogDescription>ระบุ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ เพื่อให้ระบบคำนวณสถานะจากสัดส่วนคงเหลืออัตโนมัติ</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -225,24 +244,35 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
               <Input type="number" value={form.currentQty} onChange={(e) => setForm((current) => ({ ...current, currentQty: Number(e.target.value) }))} placeholder="จำนวนคงเหลือ" />
             </div>
             <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้</p>
+              <Input type="number" min={1} value={form.maxQty || ""} onChange={(e) => setForm((current) => ({ ...current, maxQty: Number(e.target.value) }))} placeholder="จำเป็นต้องกรอก" />
+            </div>
+            <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">ต้นทุน</p>
               <Input type="number" value={form.cost} onChange={(e) => setForm((current) => ({ ...current, cost: Number(e.target.value) }))} placeholder="ราคาต้นทุน" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <p className="text-sm font-medium text-slate-700">วันหมดอายุ</p>
               <Input type="date" value={form.expiryDate.slice(0, 10)} onChange={(e) => setForm((current) => ({ ...current, expiryDate: e.target.value }))} />
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-sm font-medium text-slate-700">สถานะที่ระบบคำนวณ</p>
-              <p className="mt-2 text-sm text-slate-600">จำนวนมากกว่า 20 = ปกติ, จำนวน 1-20 = ใกล้หมด, จำนวน 0 = หมดสต็อก</p>
+              <p className="mt-2 text-sm text-slate-600">หากคงเหลือเป็น 0 จะแสดงหมดสต็อก และหากคงเหลือน้อยกว่าหรือเท่ากับ 20% ของ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ จะแสดงใกล้หมด</p>
               <div className="mt-3">
-                <Badge className={badgeClass(computeStockStatus(form.currentQty))}>{statusLabel(computeStockStatus(form.currentQty))}</Badge>
+                <Badge className={badgeClass(computeStockStatus(form.currentQty, form.maxQty))}>
+                  {statusLabel(computeStockStatus(form.currentQty, form.maxQty))}
+                </Badge>
               </div>
             </div>
+            {formError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
+                {formError}
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>ยกเลิก</Button>
-            <Button onClick={saveItem} className="bg-red-700 text-white hover:bg-red-800">บันทึก</Button>
+            <Button onClick={saveItem} className="bg-sky-700 text-white hover:bg-sky-800">บันทึก</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
