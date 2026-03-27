@@ -25,12 +25,9 @@ function defaultThreshold(item: ManagerIngredientRow) {
 export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) {
   const ingredients = data?.ingredients ?? [];
   const [thresholds, setThresholds] = useState<Record<string, number>>(
-    () =>
-      Object.fromEntries(
-        ingredients.map((item) => [item.itemId, defaultThreshold(item)])
-      )
+    () => Object.fromEntries(ingredients.map((item) => [item.itemId, defaultThreshold(item)]))
   );
-  const [savedItems, setSavedItems] = useState<string[]>([]);
+  const [isSaved, setIsSaved] = useState(false);
 
   const summary = useMemo(() => {
     const expiredCount = ingredients.filter((item) => isExpired(item.expiryDate)).length;
@@ -44,10 +41,6 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
       expiredCount,
     };
   }, [ingredients, thresholds]);
-
-  const saveThreshold = (itemId: string) => {
-    setSavedItems((current) => Array.from(new Set([itemId, ...current])));
-  };
 
   if (!data) {
     return <section className="dashboard-panel rounded-2xl border p-6 text-sm text-slate-500">ยังไม่มีข้อมูลแจ้งเตือน</section>;
@@ -96,9 +89,14 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
       </div>
 
       <Card className="dashboard-panel rounded-2xl border">
-        <CardHeader>
-          <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
-          <CardDescription>กำหนด threshold เพื่อใช้เตือนเมื่อปริมาณต่ำกว่าระดับที่เหมาะสมต่อการดำเนินงาน</CardDescription>
+        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
+            <CardDescription>ปรับค่า threshold รายแถว แล้วบันทึกทั้งหมดด้วยปุ่มเดียวตามที่ต้องการ</CardDescription>
+          </div>
+          <Button onClick={() => setIsSaved(true)} className="bg-red-700 text-white hover:bg-red-800">
+            {isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -111,7 +109,6 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
                 <TableHead>ค่าแจ้งเตือน</TableHead>
                 <TableHead>วันหมดอายุ</TableHead>
                 <TableHead>สถานะ</TableHead>
-                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,7 +118,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
                 const low = item.currentQty <= threshold;
 
                 return (
-                  <TableRow key={`${item.itemId}-${index}`} className="hover:bg-red-50/30">
+                  <TableRow key={`${item.itemId}-${index}`} className="transition-colors hover:bg-red-50/60">
                     <TableCell className="font-medium">{item.itemId}</TableCell>
                     <TableCell>{item.itemName}</TableCell>
                     <TableCell>{item.currentQty}</TableCell>
@@ -131,12 +128,13 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
                         type="number"
                         min={0}
                         value={threshold}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setIsSaved(false);
                           setThresholds((current) => ({
                             ...current,
                             [item.itemId]: Number(event.target.value),
-                          }))
-                        }
+                          }));
+                        }}
                         className="w-24"
                       />
                     </TableCell>
@@ -149,14 +147,6 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
                       ) : (
                         <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">ปกติ</Badge>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant={savedItems.includes(item.itemId) ? "secondary" : "outline"}
-                        onClick={() => saveThreshold(item.itemId)}
-                      >
-                        {savedItems.includes(item.itemId) ? "บันทึกแล้ว" : "บันทึก"}
-                      </Button>
                     </TableCell>
                   </TableRow>
                 );

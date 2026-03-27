@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, History, PackageMinus, XCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, History, PackageMinus, Search, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { IngredientStockStatus, StockDeductionStatus } from "@/lib/types/dashboard";
@@ -37,73 +36,112 @@ function computeStockStatus(qty: number): IngredientStockStatus {
   return "in_stock";
 }
 
-function itemBadgeClass(status: IngredientStockStatus) {
-  if (status === "out_of_stock") return "border-red-200 bg-red-50 text-red-700";
-  if (status === "low_stock") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700";
-}
-
-function itemStatusLabel(status: IngredientStockStatus) {
-  if (status === "out_of_stock") return "หมดสต็อก";
-  if (status === "low_stock") return "ใกล้หมด";
-  return "พร้อมใช้งาน";
-}
+type GroupedRequest = {
+  transactionId: string;
+  requestedBy: string;
+  deductTime: string;
+  status: StockDeductionStatus;
+  note: string;
+  items: string[];
+  totalQty: number;
+};
 
 export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData | null }) {
   const [ingredients, setIngredients] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
   const [deductions, setDeductions] = useState<ManagerStockDeductionRow[]>(data?.stockDeductions ?? []);
-  const [selectedItemId, setSelectedItemId] = useState<string>(data?.ingredients[0]?.itemId ?? "");
-  const [requestQty, setRequestQty] = useState<number>(1);
-  const [requestNote, setRequestNote] = useState("");
+  const [query, setQuery] = useState("");
+  const [quantityById, setQuantityById] = useState<Record<string, number>>({});
+  const [noteById, setNoteById] = useState<Record<string, string>>({});
 
-  const selectedIngredient = useMemo(
-    () => ingredients.find((item) => item.itemId === selectedItemId) ?? null,
-    [ingredients, selectedItemId]
+  const filteredIngredients = useMemo(
+    () =>
+      ingredients.filter(
+        (item) =>
+          item.itemId.toLowerCase().includes(query.toLowerCase()) ||
+          item.itemName.toLowerCase().includes(query.toLowerCase())
+      ),
+    [ingredients, query]
   );
 
-  const pendingRequests = useMemo(
-    () => deductions.filter((item) => item.status === "pending"),
-    [deductions]
+  const pendingGroups = useMemo(() => {
+    const grouped = new Map<string, GroupedRequest>();
+
+    deductions
+      .filter((item) => item.status === "pending")
+      .forEach((item) => {
+        const current = grouped.get(item.transactionId);
+        if (current) {
+          current.items.push(`${item.itemName} x ${item.deductQty}`);
+          current.totalQty += item.deductQty;
+          if (item.note) {
+            current.note = current.note ? `${current.note}, ${item.note}` : item.note;
+          }
+          return;
+        }
+
+        grouped.set(item.transactionId, {
+          transactionId: item.transactionId,
+          requestedBy: item.requestedBy,
+          deductTime: item.deductTime,
+          status: item.status,
+          note: item.note ?? "",
+          items: [`${item.itemName} x ${item.deductQty}`],
+          totalQty: item.deductQty,
+        });
+      });
+
+    return Array.from(grouped.values());
+  }, [deductions]);
+
+  const selectedItems = useMemo(
+    () =>
+      ingredients.filter((item) => (quantityById[item.itemId] ?? 0) > 0),
+    [ingredients, quantityById]
   );
 
   const submitRequest = (status: StockDeductionStatus) => {
-    if (!selectedIngredient || requestQty <= 0) return;
+    const batchItems = selectedItems;
+    if (batchItems.length === 0) return;
 
-    const nextRecord: ManagerStockDeductionRow = {
-      transactionId: `REQ-${Date.now()}`,
-      itemId: selectedIngredient.itemId,
-      itemName: selectedIngredient.itemName,
+    const transactionId = `REQ-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const nextRecords: ManagerStockDeductionRow[] = batchItems.map((item) => ({
+      transactionId,
+      itemId: item.itemId,
+      itemName: item.itemName,
       userId: "USR-MANAGER",
       requestedBy: "ผู้จัดการ",
-      deductQty: requestQty,
-      deductTime: new Date().toISOString(),
+      deductQty: quantityById[item.itemId],
+      deductTime: timestamp,
       status,
-      note: requestNote || undefined,
-    };
+      note: noteById[item.itemId] || undefined,
+    }));
 
-    setDeductions((current) => [nextRecord, ...current]);
+    setDeductions((current) => [...nextRecords, ...current]);
 
     if (status === "approved") {
       setIngredients((current) =>
-        current.map((item) =>
-          item.itemId === selectedIngredient.itemId
-            ? {
-                ...item,
-                currentQty: Math.max(0, item.currentQty - requestQty),
-                stockStatus: computeStockStatus(Math.max(0, item.currentQty - requestQty)),
-              }
-            : item
-        )
+        current.map((item) => {
+          const matched = nextRecords.find((record) => record.itemId === item.itemId);
+          if (!matched) return item;
+          const nextQty = Math.max(0, item.currentQty - matched.deductQty);
+          return {
+            ...item,
+            currentQty: nextQty,
+            stockStatus: computeStockStatus(nextQty),
+          };
+        })
       );
     }
 
-    setRequestQty(1);
-    setRequestNote("");
+    setQuantityById({});
+    setNoteById({});
   };
 
   const updatePendingStatus = (transactionId: string, status: Extract<StockDeductionStatus, "approved" | "rejected">) => {
-    const target = deductions.find((item) => item.transactionId === transactionId);
-    if (!target) return;
+    const targets = deductions.filter((item) => item.transactionId === transactionId);
+    if (targets.length === 0) return;
 
     setDeductions((current) =>
       current.map((item) => (item.transactionId === transactionId ? { ...item, status } : item))
@@ -111,15 +149,16 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
 
     if (status === "approved") {
       setIngredients((current) =>
-        current.map((item) =>
-          item.itemId === target.itemId
-            ? {
-                ...item,
-                currentQty: Math.max(0, item.currentQty - target.deductQty),
-                stockStatus: computeStockStatus(Math.max(0, item.currentQty - target.deductQty)),
-              }
-            : item
-        )
+        current.map((item) => {
+          const matched = targets.find((record) => record.itemId === item.itemId);
+          if (!matched) return item;
+          const nextQty = Math.max(0, item.currentQty - matched.deductQty);
+          return {
+            ...item,
+            currentQty: nextQty,
+            stockStatus: computeStockStatus(nextQty),
+          };
+        })
       );
     }
   };
@@ -133,18 +172,18 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       <Card className="dashboard-panel rounded-2xl border">
         <CardHeader>
           <CardTitle>ตัดสต็อกและอนุมัติคำขอเบิก</CardTitle>
-          <CardDescription>สร้างคำขอใหม่ ตรวจสอบรายการที่รออนุมัติ และดูประวัติย้อนหลังในหน้าเดียว</CardDescription>
+          <CardDescription>ค้นหาวัตถุดิบ ระบุจำนวนในรูปแบบตาราง และจัดการรายการรออนุมัติแบบรวมตามเลขที่คำขอ</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="create" className="gap-6">
             <TabsList className="grid w-full grid-cols-3 bg-red-50/70">
               <TabsTrigger value="create" className="gap-2">
                 <PackageMinus className="h-4 w-4" />
-                สร้างคำขอ
+                ฟอร์มขอเบิกวัตถุดิบ
               </TabsTrigger>
               <TabsTrigger value="pending" className="gap-2">
                 <ClipboardList className="h-4 w-4" />
-                รออนุมัติ
+                รอการอนุมัติ
               </TabsTrigger>
               <TabsTrigger value="history" className="gap-2">
                 <History className="h-4 w-4" />
@@ -152,97 +191,79 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="create" className="space-y-6">
-              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                <Card className="border-red-100 bg-white/90 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">ฟอร์มขอเบิกวัตถุดิบ</CardTitle>
-                    <CardDescription>เลือกวัตถุดิบ จำนวนที่ต้องการ และบันทึกหมายเหตุสำหรับการอนุมัติ</CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2 md:col-span-2">
-                      <p className="text-sm font-medium text-slate-700">วัตถุดิบ</p>
-                      <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="เลือกวัตถุดิบ" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ingredients.map((item) => (
-                            <SelectItem key={item.itemId} value={item.itemId}>
-                              {item.itemName} ({item.currentQty} {item.unit})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-slate-700">จำนวนที่ต้องการเบิก</p>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={requestQty}
-                        onChange={(event) => setRequestQty(Number(event.target.value))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-slate-700">หมายเหตุ</p>
-                      <Input value={requestNote} onChange={(event) => setRequestNote(event.target.value)} placeholder="เช่น ใช้สำหรับกะเช้า / งานโปรโมชัน" />
-                    </div>
-                    <div className="flex gap-3 md:col-span-2">
-                      <Button onClick={() => submitRequest("pending")} className="flex-1">
-                        ส่งรออนุมัติ
-                      </Button>
-                      <Button onClick={() => submitRequest("approved")} variant="outline" className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                        อนุมัติและตัดสต็อกทันที
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">สรุปรายการที่เลือก</CardTitle>
-                    <CardDescription>ตรวจสอบจำนวนคงเหลือและสถานะก่อนยืนยันการเบิก</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {selectedIngredient ? (
-                      <>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Item</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-900">{selectedIngredient.itemName}</p>
-                          <p className="text-sm text-slate-500">{selectedIngredient.itemId}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                            <p className="text-sm text-emerald-700">คงเหลือปัจจุบัน</p>
-                            <p className="mt-1 text-2xl font-bold text-emerald-900">
-                              {selectedIngredient.currentQty} {selectedIngredient.unit}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                            <p className="text-sm text-amber-700">หลังตัดสต็อก</p>
-                            <p className="mt-1 text-2xl font-bold text-amber-900">
-                              {Math.max(0, selectedIngredient.currentQty - requestQty)} {selectedIngredient.unit}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge className={itemBadgeClass(computeStockStatus(selectedIngredient.currentQty - requestQty))}>
-                          {itemStatusLabel(computeStockStatus(selectedIngredient.currentQty - requestQty))}
-                        </Badge>
-                      </>
-                    ) : (
-                      <p className="text-sm text-slate-500">เลือกวัตถุดิบเพื่อดูรายละเอียด</p>
-                    )}
-                  </CardContent>
-                </Card>
+            <TabsContent value="create" className="space-y-4">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหาด้วยรหัสหรือชื่อวัตถุดิบ" />
               </div>
+              <Card className="border-red-100 bg-white/90 shadow-sm">
+                <CardContent className="pt-6">
+                  <Table>
+                    <TableHeader className="bg-red-50/70">
+                      <TableRow>
+                        <TableHead>รหัส</TableHead>
+                        <TableHead>วัตถุดิบ</TableHead>
+                        <TableHead>คงเหลือ</TableHead>
+                        <TableHead>หน่วย</TableHead>
+                        <TableHead>จำนวนที่ขอเบิก</TableHead>
+                        <TableHead>หมายเหตุ</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredIngredients.map((item) => (
+                        <TableRow key={item.itemId} className="transition-colors hover:bg-red-50/60">
+                          <TableCell className="font-medium">{item.itemId}</TableCell>
+                          <TableCell>{item.itemName}</TableCell>
+                          <TableCell>{item.currentQty}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={item.currentQty}
+                              value={quantityById[item.itemId] ?? 0}
+                              onChange={(event) =>
+                                setQuantityById((current) => ({
+                                  ...current,
+                                  [item.itemId]: Number(event.target.value),
+                                }))
+                              }
+                              className="w-28"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={noteById[item.itemId] ?? ""}
+                              onChange={(event) =>
+                                setNoteById((current) => ({
+                                  ...current,
+                                  [item.itemId]: event.target.value,
+                                }))
+                              }
+                              placeholder="เช่น ใช้สำหรับโปรโมชัน"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <Button onClick={() => submitRequest("pending")} variant="outline" className="border-emerald-700 text-emerald-700 hover:bg-emerald-800 hover:text-white">
+                      ส่งรออนุมัติ
+                    </Button>
+                    <Button onClick={() => submitRequest("approved")} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                      อนุมัติและตัดสต็อกทันที
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="pending">
               <Card className="border-amber-100 bg-white/90 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">รายการที่รออนุมัติ</CardTitle>
-                  <CardDescription>คำขอจากหน้าคลังที่ยังต้องตรวจสอบก่อนตัดสต็อกจริง</CardDescription>
+                  <CardDescription>รวมรายการตามเลขที่คำขอ เพื่อให้อนุมัติหรือปฏิเสธได้ง่ายขึ้น</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -251,34 +272,39 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                         <TableHead>เลขที่คำขอ</TableHead>
                         <TableHead>วัตถุดิบ</TableHead>
                         <TableHead>ผู้ขอเบิก</TableHead>
-                        <TableHead>จำนวน</TableHead>
+                        <TableHead>จำนวนรวม</TableHead>
                         <TableHead>หมายเหตุ</TableHead>
                         <TableHead>เวลา</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingRequests.length === 0 ? (
+                      {pendingGroups.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
                             ไม่มีรายการรออนุมัติในขณะนี้
                           </TableCell>
                         </TableRow>
                       ) : (
-                        pendingRequests.map((item, index) => (
-                          <TableRow key={`${item.transactionId}-${item.itemId}-${index}`} className="hover:bg-amber-50/40">
+                        pendingGroups.map((item, index) => (
+                          <TableRow key={`${item.transactionId}-${index}`} className="transition-colors hover:bg-amber-50/60">
                             <TableCell className="font-medium">{item.transactionId}</TableCell>
-                            <TableCell>{item.itemName}</TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                {item.items.map((name) => (
+                                  <p key={name} className="text-sm">{name}</p>
+                                ))}
+                              </div>
+                            </TableCell>
                             <TableCell>{item.requestedBy}</TableCell>
-                            <TableCell>{item.deductQty}</TableCell>
+                            <TableCell>{item.totalQty}</TableCell>
                             <TableCell>{item.note || "-"}</TableCell>
                             <TableCell>{formatDateTime(item.deductTime)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                  className="bg-emerald-700 text-white hover:bg-emerald-800"
                                   onClick={() => updatePendingStatus(item.transactionId, "approved")}
                                 >
                                   <CheckCircle2 className="mr-1 h-4 w-4" />
@@ -286,8 +312,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="border-red-200 text-red-700 hover:bg-red-50"
+                                  className="bg-red-700 text-white hover:bg-red-800"
                                   onClick={() => updatePendingStatus(item.transactionId, "rejected")}
                                 >
                                   <XCircle className="mr-1 h-4 w-4" />
@@ -325,7 +350,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableHeader>
                     <TableBody>
                       {deductions.map((item, index) => (
-                        <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="hover:bg-red-50/30">
+                        <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-50/60">
                           <TableCell className="font-medium">{item.transactionId}</TableCell>
                           <TableCell>{item.itemName}</TableCell>
                           <TableCell>{item.requestedBy}</TableCell>

@@ -19,28 +19,31 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
   const [query, setQuery] = useState("");
   const [receivedQtyMap, setReceivedQtyMap] = useState<Record<string, number>>({});
 
-  const arrivedOrders = useMemo(
+  const matchedOrders = useMemo(
     () =>
-      orders.filter(
-        (item) =>
-          item.status === "arrived" &&
-          [item.poId, item.itemName, item.supplierName].some((value) =>
-            value.toLowerCase().includes(query.toLowerCase())
-          )
+      orders.filter((item) =>
+        [item.poId, item.itemName, item.supplierName].some((value) =>
+          value.toLowerCase().includes(query.toLowerCase())
+        )
       ),
     [orders, query]
   );
 
+  const arrivedOrders = useMemo(
+    () => matchedOrders.filter((item) => item.status === "arrived"),
+    [matchedOrders]
+  );
+
   const receivedOrders = useMemo(
-    () => orders.filter((item) => item.status === "received"),
-    [orders]
+    () => matchedOrders.filter((item) => item.status === "received"),
+    [matchedOrders]
   );
 
   const confirmReceive = (poId: string, receiveAll = false) => {
     const target = orders.find((item) => item.poId === poId);
     if (!target) return;
 
-    const qty = receiveAll ? target.orderQty : receivedQtyMap[poId] ?? target.receivedQty;
+    const qty = receiveAll ? target.orderQty : receivedQtyMap[poId] ?? target.orderQty;
 
     setOrders((current) =>
       current.map((item) =>
@@ -48,6 +51,20 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
           ? {
               ...item,
               receivedQty: qty,
+              status: "received",
+            }
+          : item
+      )
+    );
+  };
+
+  const confirmAllArrived = () => {
+    setOrders((current) =>
+      current.map((item) =>
+        item.status === "arrived"
+          ? {
+              ...item,
+              receivedQty: receivedQtyMap[item.poId] ?? item.orderQty,
               status: "received",
             }
           : item
@@ -65,11 +82,16 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>รับวัตถุดิบเข้าคลัง</CardTitle>
-            <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมตรวจสอบประวัติการรับย้อนหลัง</CardDescription>
+            <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมค้นหาได้ทั้งในรายการรอรับและประวัติรับสินค้า</CardDescription>
           </div>
-          <div className="relative min-w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative min-w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
+            </div>
+            <Button onClick={confirmAllArrived} className="bg-red-700 text-white hover:bg-red-800">
+              รับครบทั้งหมด
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -107,7 +129,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                     </TableRow>
                   ) : (
                     arrivedOrders.map((item, index) => (
-                      <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="hover:bg-sky-50/40">
+                      <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-sky-50/60">
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>
@@ -129,12 +151,9 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                         </TableCell>
                         <TableCell>{formatDate(item.deliveryDate)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => confirmReceive(item.poId, false)}>
-                              ยืนยันรายการนี้
-                            </Button>
-                            <Button onClick={() => confirmReceive(item.poId, true)}>รับครบทั้งหมด</Button>
-                          </div>
+                          <Button onClick={() => confirmReceive(item.poId, false)} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                            ยืนยันรับเข้า
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -157,19 +176,27 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {receivedOrders.map((item, index) => (
-                    <TableRow key={`${item.poId}-${item.receivedQty}-${index}`} className="hover:bg-emerald-50/35">
-                      <TableCell className="font-medium">{item.poId}</TableCell>
-                      <TableCell>{item.itemName}</TableCell>
-                      <TableCell>{item.supplierName}</TableCell>
-                      <TableCell>{item.orderQty.toLocaleString("th-TH")} {item.unit}</TableCell>
-                      <TableCell>{item.receivedQty.toLocaleString("th-TH")} {item.unit}</TableCell>
-                      <TableCell>
-                        <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">รับเข้าคลังแล้ว</Badge>
+                  {receivedOrders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
+                        ไม่มีประวัติรับสินค้าที่ตรงกับคำค้นหา
                       </TableCell>
-                      <TableCell>{formatDate(item.deliveryDate)}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    receivedOrders.map((item, index) => (
+                      <TableRow key={`${item.poId}-${item.receivedQty}-${index}`} className="transition-colors hover:bg-emerald-50/60">
+                        <TableCell className="font-medium">{item.poId}</TableCell>
+                        <TableCell>{item.itemName}</TableCell>
+                        <TableCell>{item.supplierName}</TableCell>
+                        <TableCell>{item.orderQty.toLocaleString("th-TH")} {item.unit}</TableCell>
+                        <TableCell>{item.receivedQty.toLocaleString("th-TH")} {item.unit}</TableCell>
+                        <TableCell>
+                          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">รับเข้าคลังแล้ว</Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(item.deliveryDate)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TabsContent>

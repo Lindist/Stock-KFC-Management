@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarRange, Download, FileBarChart2 } from "lucide-react";
+import { CalendarRange, FileBarChart2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import type { ManagerIngredientRow, ManagerPhaseData, ManagerPurchaseOrderRow, M
 
 type ReportPeriod = "year" | "month" | "week" | "day" | "custom";
 
-type StockSummaryRecord = {
+type ReportRow = {
   key: string;
   primary: string;
   secondary: string;
@@ -29,37 +29,47 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
 }
 
-function toStockRows(items: ManagerIngredientRow[]): StockSummaryRecord[] {
+function toStockRows(items: ManagerIngredientRow[]): ReportRow[] {
   return items.map((item) => ({
     key: item.itemId,
-    primary: item.itemName,
-    secondary: item.itemId,
+    primary: item.itemId,
+    secondary: item.itemName,
     metricA: `${item.currentQty} ${item.unit}`,
     metricB: item.stockStatus,
     metricC: formatDate(item.expiryDate),
   }));
 }
 
-function toDeductionRows(items: ManagerStockDeductionRow[]): StockSummaryRecord[] {
+function toDeductionRows(items: ManagerStockDeductionRow[]): ReportRow[] {
   return items.map((item, index) => ({
     key: `${item.transactionId}-${index}`,
-    primary: item.itemName,
-    secondary: item.transactionId,
+    primary: item.transactionId,
+    secondary: item.itemName,
     metricA: `${item.deductQty}`,
-    metricB: item.status,
-    metricC: formatDate(item.deductTime),
+    metricB: item.requestedBy,
+    metricC: item.status,
   }));
 }
 
-function toPurchaseRows(items: ManagerPurchaseOrderRow[]): StockSummaryRecord[] {
+function toPurchaseRows(items: ManagerPurchaseOrderRow[]): ReportRow[] {
   return items.map((item, index) => ({
     key: `${item.poId}-${index}`,
-    primary: item.itemName,
-    secondary: item.poId,
+    primary: item.poId,
+    secondary: item.itemName,
     metricA: `${item.orderQty} ${item.unit}`,
-    metricB: item.status,
+    metricB: item.supplierName,
     metricC: formatCurrency(item.priceTotal),
   }));
+}
+
+function getColumnLabels(reportType: ReportType) {
+  if (reportType === "stock_deduction") {
+    return ["เลขที่คำขอ", "วัตถุดิบ", "จำนวนเบิก", "ผู้ขอเบิก", "สถานะ"];
+  }
+  if (reportType === "purchase_order") {
+    return ["เลขที่ PO", "วัตถุดิบ", "จำนวนสั่ง", "Supplier", "ยอดรวม"];
+  }
+  return ["รหัสวัตถุดิบ", "ชื่อวัตถุดิบ", "คงเหลือ", "สถานะ", "วันหมดอายุ"];
 }
 
 export function StockReport({ data }: { data: ManagerPhaseData | null }) {
@@ -76,27 +86,64 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
     return toStockRows(data.ingredients);
   }, [data, reportType]);
 
+  const columnLabels = getColumnLabels(reportType);
+
   const generateReport = () => {
     setGeneratedAt(new Date().toISOString());
   };
 
-  const downloadReport = () => {
-    const payload = {
-      reportType,
-      period,
-      dateFrom,
-      dateTo,
-      generatedAt: new Date().toISOString(),
-      rows: reportRows,
-    };
+  const printReport = () => {
+    const printWindow = window.open("", "_blank", "width=1080,height=800");
+    if (!printWindow) return;
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${reportType}-${dateFrom}-${dateTo}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const rows = reportRows
+      .map(
+        (row) => `
+          <tr>
+            <td>${row.primary}</td>
+            <td>${row.secondary}</td>
+            <td>${row.metricA}</td>
+            <td>${row.metricB}</td>
+            <td>${row.metricC}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { margin-bottom: 8px; }
+            p { color: #475569; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+            th { background: #fee2e2; }
+          </style>
+        </head>
+        <body>
+          <h1>รายงาน ${reportType}</h1>
+          <p>ช่วงเวลา ${dateFrom} ถึง ${dateTo}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>${columnLabels[0]}</th>
+                <th>${columnLabels[1]}</th>
+                <th>${columnLabels[2]}</th>
+                <th>${columnLabels[3]}</th>
+                <th>${columnLabels[4]}</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   if (!data) {
@@ -108,7 +155,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
       <Card className="dashboard-panel rounded-2xl border">
         <CardHeader>
           <CardTitle>รายงานสต็อกและการจัดซื้อ</CardTitle>
-          <CardDescription>เลือกประเภท ช่วงเวลา และสร้าง snapshot รายงานเพื่อดูบนหน้าจอหรือดาวน์โหลดออกไป</CardDescription>
+          <CardDescription>เลือกประเภท ช่วงเวลา และแสดงรายงานบนหน้าจอพร้อมพิมพ์เอกสารออกมาได้ทันที</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 lg:grid-cols-5">
@@ -120,7 +167,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="stock_summary">สรุปสต็อก</SelectItem>
-                  <SelectItem value="stock_deduction">ประวัติตัดสต็อก</SelectItem>
+                  <SelectItem value="stock_deduction">ประวัติสต็อก</SelectItem>
                   <SelectItem value="purchase_order">ประวัติสั่งซื้อ</SelectItem>
                 </SelectContent>
               </Select>
@@ -149,13 +196,13 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
               <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </div>
             <div className="flex items-end gap-2">
-              <Button onClick={generateReport} className="flex-1">
+              <Button onClick={generateReport} className="flex-1 bg-red-700 text-white hover:bg-red-800">
                 <FileBarChart2 className="mr-2 h-4 w-4" />
                 แสดงรายงาน
               </Button>
-              <Button variant="outline" onClick={downloadReport} className="flex-1">
-                <Download className="mr-2 h-4 w-4" />
-                ดาวน์โหลด
+              <Button onClick={printReport} className="flex-1 bg-emerald-700 text-white hover:bg-emerald-800">
+                <Printer className="mr-2 h-4 w-4" />
+                พิมพ์รายงาน
               </Button>
             </div>
           </div>
@@ -187,7 +234,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg">ตัวอย่างข้อมูลรายงาน</CardTitle>
-                <CardDescription>แสดง snapshot ตามประเภทที่เลือกในรูปแบบตาราง</CardDescription>
+                <CardDescription>หัวตารางจะเปลี่ยนตามประเภทรายงานที่เลือก</CardDescription>
               </div>
               <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-600">
                 <CalendarRange className="h-4 w-4" />
@@ -198,16 +245,16 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
               <Table>
                 <TableHeader className="bg-slate-50/90">
                   <TableRow>
-                    <TableHead>หัวข้อหลัก</TableHead>
-                    <TableHead>อ้างอิง</TableHead>
-                    <TableHead>ค่า 1</TableHead>
-                    <TableHead>ค่า 2</TableHead>
-                    <TableHead>ค่า 3</TableHead>
+                    <TableHead>{columnLabels[0]}</TableHead>
+                    <TableHead>{columnLabels[1]}</TableHead>
+                    <TableHead>{columnLabels[2]}</TableHead>
+                    <TableHead>{columnLabels[3]}</TableHead>
+                    <TableHead>{columnLabels[4]}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reportRows.map((row) => (
-                    <TableRow key={row.key} className="hover:bg-red-50/30">
+                    <TableRow key={row.key} className="transition-colors hover:bg-red-50/60">
                       <TableCell className="font-medium">{row.primary}</TableCell>
                       <TableCell>{row.secondary}</TableCell>
                       <TableCell>{row.metricA}</TableCell>

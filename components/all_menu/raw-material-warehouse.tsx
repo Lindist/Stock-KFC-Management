@@ -27,6 +27,12 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
 }
 
+function computeStockStatus(qty: number): IngredientStockStatus {
+  if (qty <= 0) return "out_of_stock";
+  if (qty <= 20) return "low_stock";
+  return "in_stock";
+}
+
 function badgeClass(status: IngredientStockStatus) {
   if (status === "out_of_stock") return "border-red-200 bg-red-50 text-red-700";
   if (status === "low_stock") return "border-amber-200 bg-amber-50 text-amber-700";
@@ -34,10 +40,19 @@ function badgeClass(status: IngredientStockStatus) {
 }
 
 function statusLabel(status: IngredientStockStatus) {
-  if (status === "out_of_stock") return "หมดสต๊อก";
+  if (status === "out_of_stock") return "หมดสต็อก";
   if (status === "low_stock") return "ใกล้หมด";
   return "ปกติ";
 }
+
+type IngredientFormState = {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  cost: number;
+  expiryDate: string;
+  currentQty: number;
+};
 
 export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }) {
   const [items, setItems] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
@@ -45,14 +60,13 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
   const [statusFilter, setStatusFilter] = useState<"all" | IngredientStockStatus>("all");
   const [open, setOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [form, setForm] = useState<ManagerIngredientRow>({
+  const [form, setForm] = useState<IngredientFormState>({
     itemId: "",
     itemName: "",
     unit: "",
     cost: 0,
     expiryDate: "",
     currentQty: 0,
-    stockStatus: "in_stock",
   });
 
   const filteredItems = useMemo(
@@ -76,23 +90,36 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
       cost: 0,
       expiryDate: "",
       currentQty: 0,
-      stockStatus: "in_stock",
     });
     setOpen(true);
   };
 
   const openEdit = (item: ManagerIngredientRow) => {
     setEditingItemId(item.itemId);
-    setForm(item);
+    setForm({
+      itemId: item.itemId,
+      itemName: item.itemName,
+      unit: item.unit,
+      cost: item.cost,
+      expiryDate: item.expiryDate.slice(0, 10),
+      currentQty: item.currentQty,
+    });
     setOpen(true);
   };
 
   const saveItem = () => {
     if (!form.itemName || !form.unit) return;
+
+    const nextItem: ManagerIngredientRow = {
+      ...form,
+      expiryDate: form.expiryDate,
+      stockStatus: computeStockStatus(form.currentQty),
+    };
+
     if (editingItemId) {
-      setItems((current) => current.map((item) => (item.itemId === editingItemId ? form : item)));
+      setItems((current) => current.map((item) => (item.itemId === editingItemId ? nextItem : item)));
     } else {
-      setItems((current) => [form, ...current]);
+      setItems((current) => [nextItem, ...current]);
     }
     setOpen(false);
   };
@@ -107,12 +134,12 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>คลังวัตถุดิบ</CardTitle>
-            <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบในคลัง</CardDescription>
+            <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบในคลังโดยคำนวณสถานะจากจำนวนคงเหลืออัตโนมัติ</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="ค้นหารหัสหรือชื่อวัตถุดิบ" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="ค้นหาจากรหัสหรือชื่อวัตถุดิบ" />
             </div>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | IngredientStockStatus)}>
               <SelectTrigger className="w-44">
@@ -122,10 +149,10 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                 <SelectItem value="all">ทั้งหมด</SelectItem>
                 <SelectItem value="in_stock">ปกติ</SelectItem>
                 <SelectItem value="low_stock">ใกล้หมด</SelectItem>
-                <SelectItem value="out_of_stock">หมดสต๊อก</SelectItem>
+                <SelectItem value="out_of_stock">หมดสต็อก</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate}>
+            <Button onClick={openCreate} className="bg-red-700 text-white hover:bg-red-800">
               <Plus className="mr-2 h-4 w-4" />
               เพิ่มวัตถุดิบลงคลัง
             </Button>
@@ -147,17 +174,21 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => (
-                <TableRow key={item.itemId} className="hover:bg-red-50/40">
+                <TableRow key={item.itemId} className="transition-colors hover:bg-red-50/60">
                   <TableCell className="font-medium">{item.itemId}</TableCell>
                   <TableCell>{item.itemName}</TableCell>
                   <TableCell>{item.currentQty}</TableCell>
                   <TableCell>{item.unit}</TableCell>
-                  <TableCell><Badge className={badgeClass(item.stockStatus)}>{statusLabel(item.stockStatus)}</Badge></TableCell>
+                  <TableCell>
+                    <Badge className={badgeClass(item.stockStatus)}>{statusLabel(item.stockStatus)}</Badge>
+                  </TableCell>
                   <TableCell>{formatDate(item.expiryDate)}</TableCell>
                   <TableCell>{formatCurrency(item.cost)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(item)}><Edit3 className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => setItems((current) => current.filter((row) => row.itemId !== item.itemId))}>
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
@@ -174,27 +205,44 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItemId ? "แก้ไขวัตถุดิบ" : "เพิ่มวัตถุดิบลงคลัง"}</DialogTitle>
-            <DialogDescription>อัปเดตรายละเอียดวัตถุดิบให้พร้อมใช้งานในระบบคลัง</DialogDescription>
+            <DialogDescription>กรอกข้อมูลวัตถุดิบ ระบบจะคำนวณสถานะจากจำนวนคงเหลือให้อัตโนมัติ</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input value={form.itemId} onChange={(e) => setForm((current) => ({ ...current, itemId: e.target.value }))} placeholder="รหัสวัตถุดิบ" />
-            <Input value={form.itemName} onChange={(e) => setForm((current) => ({ ...current, itemName: e.target.value }))} placeholder="ชื่อวัตถุดิบ" />
-            <Input value={form.unit} onChange={(e) => setForm((current) => ({ ...current, unit: e.target.value }))} placeholder="หน่วย" />
-            <Input type="number" value={form.currentQty} onChange={(e) => setForm((current) => ({ ...current, currentQty: Number(e.target.value) }))} placeholder="คงเหลือ" />
-            <Input type="number" value={form.cost} onChange={(e) => setForm((current) => ({ ...current, cost: Number(e.target.value) }))} placeholder="ต้นทุน" />
-            <Input type="date" value={form.expiryDate.slice(0, 10)} onChange={(e) => setForm((current) => ({ ...current, expiryDate: e.target.value }))} />
-            <Select value={form.stockStatus} onValueChange={(value) => setForm((current) => ({ ...current, stockStatus: value as IngredientStockStatus }))}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="สถานะ" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in_stock">ปกติ</SelectItem>
-                <SelectItem value="low_stock">ใกล้หมด</SelectItem>
-                <SelectItem value="out_of_stock">หมดสต๊อก</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">รหัสวัตถุดิบ</p>
+              <Input value={form.itemId} onChange={(e) => setForm((current) => ({ ...current, itemId: e.target.value }))} placeholder="เช่น ING001" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">ชื่อวัตถุดิบ</p>
+              <Input value={form.itemName} onChange={(e) => setForm((current) => ({ ...current, itemName: e.target.value }))} placeholder="เช่น Chicken Fillet" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">หน่วย</p>
+              <Input value={form.unit} onChange={(e) => setForm((current) => ({ ...current, unit: e.target.value }))} placeholder="เช่น kg / pack / box" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">จำนวนคงเหลือ</p>
+              <Input type="number" value={form.currentQty} onChange={(e) => setForm((current) => ({ ...current, currentQty: Number(e.target.value) }))} placeholder="จำนวนคงเหลือ" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">ต้นทุน</p>
+              <Input type="number" value={form.cost} onChange={(e) => setForm((current) => ({ ...current, cost: Number(e.target.value) }))} placeholder="ราคาต้นทุน" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">วันหมดอายุ</p>
+              <Input type="date" value={form.expiryDate.slice(0, 10)} onChange={(e) => setForm((current) => ({ ...current, expiryDate: e.target.value }))} />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+              <p className="text-sm font-medium text-slate-700">สถานะที่ระบบคำนวณ</p>
+              <p className="mt-2 text-sm text-slate-600">จำนวนมากกว่า 20 = ปกติ, จำนวน 1-20 = ใกล้หมด, จำนวน 0 = หมดสต็อก</p>
+              <div className="mt-3">
+                <Badge className={badgeClass(computeStockStatus(form.currentQty))}>{statusLabel(computeStockStatus(form.currentQty))}</Badge>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>ยกเลิก</Button>
-            <Button onClick={saveItem}>บันทึก</Button>
+            <Button onClick={saveItem} className="bg-red-700 text-white hover:bg-red-800">บันทึก</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

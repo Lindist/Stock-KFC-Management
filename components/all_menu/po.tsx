@@ -134,9 +134,9 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                 <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate}>
+            <Button onClick={openCreate} className="bg-red-700 text-white hover:bg-red-800">
               <FilePlus2 className="mr-2 h-4 w-4" />
-              สร้าง PO
+              เพิ่มใบสั่งซื้อ
             </Button>
           </div>
         </CardHeader>
@@ -157,7 +157,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((item, index) => (
-                <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="hover:bg-red-50/35">
+                <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-red-50/60">
                   <TableCell className="font-medium">{item.poId}</TableCell>
                   <TableCell>
                     <div>
@@ -178,11 +178,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                       <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setOrders((current) => current.filter((row) => row.poId !== item.poId))}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setOrders((current) => current.filter((row) => row.poId !== item.poId))}>
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
                     </div>
@@ -197,54 +193,65 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingPoId ? "แก้ไขใบสั่งซื้อ" : "สร้างใบสั่งซื้อใหม่"}</DialogTitle>
+            <DialogTitle>{editingPoId ? "แก้ไขใบสั่งซื้อ" : "เพิ่มใบสั่งซื้อ"}</DialogTitle>
             <DialogDescription>กรอกรายละเอียด PO เพื่อใช้ติดตามการจัดซื้อและการรับวัตถุดิบเข้าคลัง</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input value={form.poId} onChange={(event) => setForm((current) => ({ ...current, poId: event.target.value }))} placeholder="เลขที่ PO" />
-            <Input value={form.supplierName} onChange={(event) => setForm((current) => ({ ...current, supplierName: event.target.value }))} placeholder="Supplier" />
-            <Input value={form.itemId} onChange={(event) => setForm((current) => ({ ...current, itemId: event.target.value }))} placeholder="รหัสวัตถุดิบ" />
-            <Input value={form.itemName} onChange={(event) => setForm((current) => ({ ...current, itemName: event.target.value }))} placeholder="ชื่อวัตถุดิบ" />
-            <Input value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} placeholder="หน่วย" />
-            <Input
-              type="number"
-              value={form.orderQty}
-              onChange={(event) => setForm((current) => ({ ...current, orderQty: Number(event.target.value) }))}
-              placeholder="จำนวนสั่ง"
-            />
-            <Input
-              type="number"
-              value={form.receivedQty}
-              onChange={(event) => setForm((current) => ({ ...current, receivedQty: Number(event.target.value) }))}
-              placeholder="จำนวนที่รับแล้ว"
-            />
-            <Input
-              type="number"
-              value={form.priceTotal}
-              onChange={(event) => setForm((current) => ({ ...current, priceTotal: Number(event.target.value) }))}
-              placeholder="ยอดรวม"
-            />
-            <Input
-              type="date"
-              value={form.deliveryDate.slice(0, 10)}
-              onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))}
-            />
-            <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as PurchaseOrderStatus }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="สถานะ" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">รอดำเนินการ</SelectItem>
-                <SelectItem value="arrived">ของมาถึงแล้ว</SelectItem>
-                <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">เลขที่ PO</p>
+              <Input value={form.poId} onChange={(event) => setForm((current) => ({ ...current, poId: event.target.value }))} placeholder="เช่น PO-0001" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">Supplier</p>
+              <Input value={form.supplierName} onChange={(event) => setForm((current) => ({ ...current, supplierName: event.target.value }))} placeholder="ชื่อ supplier" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">รหัสวัตถุดิบ</p>
+              <Input value={form.itemId} onChange={(event) => setForm((current) => ({ ...current, itemId: event.target.value }))} placeholder="เช่น ING001" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">ชื่อวัตถุดิบ</p>
+              <Input value={form.itemName} onChange={(event) => setForm((current) => ({ ...current, itemName: event.target.value }))} placeholder="ชื่อวัตถุดิบ" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">หน่วย</p>
+              <Input value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} placeholder="เช่น box / kg" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">จำนวนสั่ง</p>
+              <Input type="number" value={form.orderQty} onChange={(event) => setForm((current) => ({ ...current, orderQty: Number(event.target.value) }))} placeholder="จำนวนสั่ง" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">จำนวนที่รับแล้ว</p>
+              <Input type="number" value={form.receivedQty} onChange={(event) => setForm((current) => ({ ...current, receivedQty: Number(event.target.value) }))} placeholder="จำนวนที่รับแล้ว" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">ยอดรวม</p>
+              <Input type="number" value={form.priceTotal} onChange={(event) => setForm((current) => ({ ...current, priceTotal: Number(event.target.value) }))} placeholder="ยอดรวม" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">กำหนดส่ง</p>
+              <Input type="date" value={form.deliveryDate.slice(0, 10)} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">สถานะ</p>
+              <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as PurchaseOrderStatus }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="สถานะ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">รอดำเนินการ</SelectItem>
+                  <SelectItem value="arrived">ของมาถึงแล้ว</SelectItem>
+                  <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               ยกเลิก
             </Button>
-            <Button onClick={saveOrder}>บันทึก</Button>
+            <Button onClick={saveOrder} className="bg-red-700 text-white hover:bg-red-800">บันทึก</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
