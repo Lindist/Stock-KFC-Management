@@ -44,8 +44,8 @@ const emptyForm: ManagerPurchaseOrderRow = {
   itemId: "",
   itemName: "",
   unit: "",
-  approverId: "USR001",
-  approverName: "ผู้จัดการ",
+  approverId: "",
+  approverName: "",
   supplierName: "",
   orderQty: 0,
   receivedQty: 0,
@@ -60,6 +60,8 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
   const [statusFilter, setStatusFilter] = useState<"all" | PurchaseOrderStatus>("all");
   const [open, setOpen] = useState(false);
   const [editingPoId, setEditingPoId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState<ManagerPurchaseOrderRow>(emptyForm);
 
   const filteredOrders = useMemo(
@@ -77,6 +79,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
 
   const openCreate = () => {
     setEditingPoId(null);
+    setFormError("");
     setForm({
       ...emptyForm,
       poId: `PO-${String(orders.length + 1).padStart(4, "0")}`,
@@ -87,6 +90,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
 
   const openEdit = (item: ManagerPurchaseOrderRow) => {
     setEditingPoId(item.poId);
+    setFormError("");
     setForm({
       ...item,
       deliveryDate: item.deliveryDate.slice(0, 10),
@@ -94,16 +98,55 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
     setOpen(true);
   };
 
-  const saveOrder = () => {
-    if (!form.poId || !form.itemName || !form.supplierName) return;
-
-    if (editingPoId) {
-      setOrders((current) => current.map((item) => (item.poId === editingPoId ? form : item)));
-    } else {
-      setOrders((current) => [form, ...current]);
+  const saveOrder = async () => {
+    if (!form.poId || !form.itemId || !form.supplierName || !form.deliveryDate) {
+      setFormError("กรุณากรอกข้อมูลใบสั่งซื้อให้ครบ");
+      return;
     }
 
-    setOpen(false);
+    try {
+      setIsSubmitting(true);
+      setFormError("");
+
+      const response = await fetch(
+        editingPoId ? `/api/purchase-orders/${editingPoId}` : "/api/purchase-orders",
+        {
+          method: editingPoId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        setFormError(payload.error ?? "ไม่สามารถบันทึกใบสั่งซื้อได้");
+        return;
+      }
+
+      const nextOrder = payload as ManagerPurchaseOrderRow;
+      if (editingPoId) {
+        setOrders((current) => current.map((item) => (item.poId === editingPoId ? nextOrder : item)));
+      } else {
+        setOrders((current) => [nextOrder, ...current]);
+      }
+      setOpen(false);
+    } catch {
+      setFormError("ไม่สามารถเชื่อมต่อฐานข้อมูลเพื่อบันทึกใบสั่งซื้อได้");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const deleteOrder = async (poId: string) => {
+    try {
+      const response = await fetch(`/api/purchase-orders/${poId}`, { method: "DELETE" });
+      if (!response.ok) {
+        return;
+      }
+      setOrders((current) => current.filter((row) => row.poId !== poId));
+    } catch {
+      // keep UI state if delete fails
+    }
   };
 
   if (!data) {
@@ -116,7 +159,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>ใบสั่งซื้อ</CardTitle>
-            <CardDescription>ค้นหา ติดตามสถานะ และจัดการรายการสั่งซื้อวัตถุดิบจาก supplier</CardDescription>
+            <CardDescription>ค้นหา ติดตามสถานะ และจัดการรายการสั่งซื้อวัตถุดิบจาก supplier โดยบันทึกลงฐานข้อมูลจริง</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-72">
@@ -178,7 +221,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                       <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => setOrders((current) => current.filter((row) => row.poId !== item.poId))}>
+                      <Button variant="outline" size="sm" onClick={() => void deleteOrder(item.poId)}>
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
                     </div>
@@ -246,12 +289,19 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                 </SelectContent>
               </Select>
             </div>
+            {formError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
+                {formError}
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
               ยกเลิก
             </Button>
-            <Button onClick={saveOrder} className="bg-sky-700 text-white hover:bg-sky-800">บันทึก</Button>
+            <Button onClick={() => void saveOrder()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

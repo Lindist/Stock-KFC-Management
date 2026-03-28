@@ -18,6 +18,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
   const [orders, setOrders] = useState<ManagerPurchaseOrderRow[]>(data?.purchaseOrders ?? []);
   const [query, setQuery] = useState("");
   const [receivedQtyMap, setReceivedQtyMap] = useState<Record<string, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const matchedOrders = useMemo(
     () =>
@@ -39,37 +40,36 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
     [matchedOrders]
   );
 
-  const confirmReceive = (poId: string, receiveAll = false) => {
+  const confirmReceive = async (poId: string, receiveAll = false) => {
     const target = orders.find((item) => item.poId === poId);
     if (!target) return;
 
     const qty = receiveAll ? target.orderQty : receivedQtyMap[poId] ?? target.orderQty;
 
-    setOrders((current) =>
-      current.map((item) =>
-        item.poId === poId
-          ? {
-              ...item,
-              receivedQty: qty,
-              status: "received",
-            }
-          : item
-      )
-    );
+    try {
+      setIsSubmitting(true);
+      const response = await fetch(`/api/purchase-orders/${poId}/receive`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receivedQty: qty }),
+      });
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = await response.json();
+      setOrders((current) =>
+        current.map((item) => (item.poId === poId ? (payload as ManagerPurchaseOrderRow) : item))
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const confirmAllArrived = () => {
-    setOrders((current) =>
-      current.map((item) =>
-        item.status === "arrived"
-          ? {
-              ...item,
-              receivedQty: receivedQtyMap[item.poId] ?? item.orderQty,
-              status: "received",
-            }
-          : item
-      )
-    );
+  const confirmAllArrived = async () => {
+    for (const item of arrivedOrders) {
+      await confirmReceive(item.poId, true);
+    }
   };
 
   if (!data) {
@@ -82,14 +82,14 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>รับวัตถุดิบเข้าคลัง</CardTitle>
-            <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมค้นหาได้ทั้งในรายการรอรับและประวัติรับสินค้า</CardDescription>
+            <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมบันทึกสถานะและจำนวนรับจริงลงฐานข้อมูล</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
             </div>
-            <Button onClick={confirmAllArrived} className="bg-sky-700 text-white hover:bg-sky-800">
+            <Button onClick={() => void confirmAllArrived()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
               รับครบทั้งหมด
             </Button>
           </div>
@@ -151,7 +151,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                         </TableCell>
                         <TableCell>{formatDate(item.deliveryDate)}</TableCell>
                         <TableCell className="text-right">
-                          <Button onClick={() => confirmReceive(item.poId, false)} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                          <Button onClick={() => void confirmReceive(item.poId, false)} className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={isSubmitting}>
                             ยืนยันรับเข้า
                           </Button>
                         </TableCell>

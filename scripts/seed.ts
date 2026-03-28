@@ -54,6 +54,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     current_qty: 500,
     max_qty: 700,
+    alert_threshold: 140,
     stock_status: "in_stock",
   },
   {
@@ -64,6 +65,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     current_qty: 300,
     max_qty: 450,
+    alert_threshold: 90,
     stock_status: "in_stock",
   },
   {
@@ -74,6 +76,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 3)),
     current_qty: 150,
     max_qty: 220,
+    alert_threshold: 44,
     stock_status: "in_stock",
   },
   {
@@ -84,6 +87,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 6)),
     current_qty: 200,
     max_qty: 260,
+    alert_threshold: 52,
     stock_status: "in_stock",
   },
   {
@@ -94,6 +98,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 4)),
     current_qty: 400,
     max_qty: 520,
+    alert_threshold: 104,
     stock_status: "in_stock",
   },
   {
@@ -104,6 +109,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setDate(new Date().getDate() + 5)),
     current_qty: 20,
     max_qty: 90,
+    alert_threshold: 18,
     stock_status: "low_stock",
   },
   {
@@ -114,6 +120,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 2)),
     current_qty: 50,
     max_qty: 120,
+    alert_threshold: 24,
     stock_status: "in_stock",
   },
   {
@@ -124,6 +131,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setDate(new Date().getDate() + 7)),
     current_qty: 600,
     max_qty: 900,
+    alert_threshold: 180,
     stock_status: "in_stock",
   },
   {
@@ -134,6 +142,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setMonth(new Date().getMonth() + 6)),
     current_qty: 0,
     max_qty: 180,
+    alert_threshold: 36,
     stock_status: "out_of_stock",
   },
   {
@@ -144,6 +153,7 @@ const mockIngredients = [
     expiry_date: new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
     current_qty: 1000,
     max_qty: 1400,
+    alert_threshold: 280,
     stock_status: "in_stock",
   },
 ];

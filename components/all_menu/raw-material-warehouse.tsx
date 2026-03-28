@@ -62,6 +62,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
   const [open, setOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<IngredientFormState>({
     itemId: "",
     itemName: "",
@@ -114,7 +115,29 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
     setOpen(true);
   };
 
-  const saveItem = () => {
+  const mapIngredientRow = (payload: {
+    item_id: string;
+    item_name: string;
+    unit: string;
+    cost: number;
+    expiry_date: string;
+    current_qty: number;
+    max_qty: number;
+    alert_threshold: number;
+    stock_status: IngredientStockStatus;
+  }): ManagerIngredientRow => ({
+    itemId: payload.item_id,
+    itemName: payload.item_name,
+    unit: payload.unit,
+    cost: payload.cost,
+    expiryDate: payload.expiry_date,
+    currentQty: payload.current_qty,
+    maxQty: payload.max_qty,
+    alertThreshold: payload.alert_threshold,
+    stockStatus: payload.stock_status,
+  });
+
+  const saveItem = async () => {
     if (!form.itemName || !form.unit || !form.expiryDate || form.maxQty <= 0) {
       setFormError("กรุณากรอกข้อมูลให้ครบ และระบุ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ มากกว่า 0");
       return;
@@ -127,18 +150,53 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
 
     setFormError("");
 
-    const nextItem: ManagerIngredientRow = {
-      ...form,
-      expiryDate: form.expiryDate,
-      stockStatus: computeStockStatus(form.currentQty, form.maxQty),
-    };
+    try {
+      setIsSubmitting(true);
 
-    if (editingItemId) {
-      setItems((current) => current.map((item) => (item.itemId === editingItemId ? nextItem : item)));
-    } else {
-      setItems((current) => [nextItem, ...current]);
+      const response = await fetch(
+        editingItemId ? `/api/ingredients/${editingItemId}` : "/api/ingredients",
+        {
+          method: editingItemId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            alertThreshold:
+              items.find((item) => item.itemId === editingItemId)?.alertThreshold ??
+              Math.max(10, Math.floor(form.maxQty * 0.2)),
+          }),
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        setFormError(payload.error ?? "ไม่สามารถบันทึกข้อมูลวัตถุดิบได้");
+        return;
+      }
+
+      const nextItem = mapIngredientRow(payload);
+      if (editingItemId) {
+        setItems((current) => current.map((item) => (item.itemId === editingItemId ? nextItem : item)));
+      } else {
+        setItems((current) => [nextItem, ...current]);
+      }
+      setOpen(false);
+    } catch {
+      setFormError("ไม่สามารถเชื่อมต่อฐานข้อมูลเพื่อบันทึกข้อมูลได้");
+    } finally {
+      setIsSubmitting(false);
     }
-    setOpen(false);
+  };
+
+  const deleteItem = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/ingredients/${itemId}`, { method: "DELETE" });
+      if (!response.ok) {
+        return;
+      }
+      setItems((current) => current.filter((row) => row.itemId !== itemId));
+    } catch {
+      // Keep current UI state when delete fails.
+    }
   };
 
   if (!data) {
@@ -208,7 +266,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                       <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => setItems((current) => current.filter((row) => row.itemId !== item.itemId))}>
+                      <Button variant="outline" size="sm" onClick={() => void deleteItem(item.itemId)}>
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
                     </div>
@@ -271,8 +329,10 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>ยกเลิก</Button>
-            <Button onClick={saveItem} className="bg-sky-700 text-white hover:bg-sky-800">บันทึก</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>ยกเลิก</Button>
+            <Button onClick={() => void saveItem()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -19,14 +19,15 @@ function formatDate(value: string) {
 }
 
 function defaultThreshold(item: ManagerIngredientRow) {
-  return Math.max(10, Math.floor(item.currentQty * 0.2));
+  return item.alertThreshold;
 }
 
 export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) {
-  const ingredients = data?.ingredients ?? [];
+  const [ingredients, setIngredients] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
   const [thresholds, setThresholds] = useState<Record<string, number>>(
-    () => Object.fromEntries(ingredients.map((item) => [item.itemId, defaultThreshold(item)]))
+    () => Object.fromEntries((data?.ingredients ?? []).map((item) => [item.itemId, defaultThreshold(item)]))
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   const summary = useMemo(() => {
@@ -41,6 +42,36 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
       expiredCount,
     };
   }, [ingredients, thresholds]);
+
+  const saveThresholds = async () => {
+    try {
+      setIsSubmitting(true);
+      const response = await fetch("/api/ingredients/thresholds", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          thresholds: ingredients.map((item) => ({
+            itemId: item.itemId,
+            alertThreshold: thresholds[item.itemId] ?? defaultThreshold(item),
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      setIngredients((current) =>
+        current.map((item) => ({
+          ...item,
+          alertThreshold: thresholds[item.itemId] ?? item.alertThreshold,
+        }))
+      );
+      setIsSaved(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!data) {
     return <section className="dashboard-panel rounded-2xl border p-6 text-sm text-slate-500">ยังไม่มีข้อมูลแจ้งเตือน</section>;
@@ -92,10 +123,10 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
         <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
-            <CardDescription>ปรับค่า threshold รายแถว แล้วบันทึกทั้งหมดด้วยปุ่มเดียวตามที่ต้องการ</CardDescription>
+            <CardDescription>ปรับค่า threshold รายแถว และบันทึกลงฐานข้อมูลจริงด้วยปุ่มเดียว</CardDescription>
           </div>
-          <Button onClick={() => setIsSaved(true)} className="bg-sky-700 text-white hover:bg-sky-800">
-            {isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
+          <Button onClick={() => void saveThresholds()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
+            {isSubmitting ? "กำลังบันทึก..." : isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
           </Button>
         </CardHeader>
         <CardContent>

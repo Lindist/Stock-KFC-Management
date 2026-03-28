@@ -151,6 +151,7 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       expiryDate: toIsoString(item.expiry_date),
       currentQty: item.current_qty,
       maxQty: item.max_qty ?? 0,
+      alertThreshold: item.alert_threshold ?? Math.max(10, Math.floor((item.max_qty ?? 0) * 0.2)),
       stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0),
     })),
     stockDeductions: stockDeductions.map((item) => ({

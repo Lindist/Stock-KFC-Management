@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { IngredientStockStatus, StockDeductionStatus } from "@/lib/types/dashboard";
+import type { StockDeductionStatus } from "@/lib/types/dashboard";
 import type { ManagerIngredientRow, ManagerPhaseData, ManagerStockDeductionRow } from "@/lib/types/manager";
 
 function formatDateTime(value: string) {
@@ -30,12 +30,6 @@ function statusLabel(status: StockDeductionStatus) {
   return "รออนุมัติ";
 }
 
-function computeStockStatus(qty: number, maxQty: number): IngredientStockStatus {
-  if (qty <= 0) return "out_of_stock";
-  if (maxQty > 0 && qty / maxQty <= 0.2) return "low_stock";
-  return "in_stock";
-}
-
 type GroupedRequest = {
   transactionId: string;
   requestedBy: string;
@@ -53,6 +47,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
   const [historyQuery, setHistoryQuery] = useState("");
   const [quantityById, setQuantityById] = useState<Record<string, number>>({});
   const [noteById, setNoteById] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredIngredients = useMemo(
     () =>
@@ -114,67 +109,78 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
     [ingredients, quantityById]
   );
 
-  const submitRequest = (status: StockDeductionStatus) => {
-    const batchItems = selectedItems;
-    if (batchItems.length === 0) return;
-
-    const transactionId = `REQ-${Date.now()}`;
-    const timestamp = new Date().toISOString();
-
-    const nextRecords: ManagerStockDeductionRow[] = batchItems.map((item) => ({
-      transactionId,
+  const submitRequest = async (status: StockDeductionStatus) => {
+    const items = selectedItems.map((item) => ({
       itemId: item.itemId,
-      itemName: item.itemName,
-      userId: "USR-MANAGER",
-      requestedBy: "ผู้จัดการ",
       deductQty: quantityById[item.itemId],
-      deductTime: timestamp,
-      status,
-      note: noteById[item.itemId] || undefined,
+      note: noteById[item.itemId] || "",
     }));
 
-    setDeductions((current) => [...nextRecords, ...current]);
+    if (items.length === 0) return;
 
-    if (status === "approved") {
-      setIngredients((current) =>
-        current.map((item) => {
-          const matched = nextRecords.find((record) => record.itemId === item.itemId);
-          if (!matched) return item;
-          const nextQty = Math.max(0, item.currentQty - matched.deductQty);
-          return {
-            ...item,
-            currentQty: nextQty,
-            stockStatus: computeStockStatus(nextQty, item.maxQty),
-          };
-        })
-      );
+    try {
+      setIsSubmitting(true);
+      const response = await fetch("/api/stock-deductions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, status }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = await response.json();
+      const createdItems = payload.items as ManagerStockDeductionRow[];
+
+      setDeductions((current) => [...createdItems, ...current]);
+      if (status === "approved") {
+        setIngredients((current) =>
+          current.map((item) => {
+            const matched = createdItems.find((record) => record.itemId === item.itemId);
+            if (!matched) return item;
+            return {
+              ...item,
+              currentQty: Math.max(0, item.currentQty - matched.deductQty),
+            };
+          })
+        );
+      }
+
+      setQuantityById({});
+      setNoteById({});
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setQuantityById({});
-    setNoteById({});
   };
 
-  const updatePendingStatus = (transactionId: string, status: Extract<StockDeductionStatus, "approved" | "rejected">) => {
-    const targets = deductions.filter((item) => item.transactionId === transactionId);
-    if (targets.length === 0) return;
+  const updatePendingStatus = async (transactionId: string, status: Extract<StockDeductionStatus, "approved" | "rejected">) => {
+    try {
+      setIsSubmitting(true);
+      const response = await fetch(`/api/stock-deductions/${transactionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
 
-    setDeductions((current) =>
-      current.map((item) => (item.transactionId === transactionId ? { ...item, status } : item))
-    );
+      if (!response.ok) {
+        return;
+      }
 
-    if (status === "approved") {
-      setIngredients((current) =>
-        current.map((item) => {
-          const matched = targets.find((record) => record.itemId === item.itemId);
-          if (!matched) return item;
-          const nextQty = Math.max(0, item.currentQty - matched.deductQty);
-          return {
-            ...item,
-            currentQty: nextQty,
-            stockStatus: computeStockStatus(nextQty, item.maxQty),
-          };
-        })
+      const payload = (await response.json()) as Array<{
+        transaction_id: string;
+        status: StockDeductionStatus;
+      }>;
+
+      setDeductions((current) =>
+        current.map((item) =>
+          item.transactionId === transactionId
+            ? { ...item, status: payload[0]?.status ?? status }
+            : item
+        )
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -187,7 +193,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       <Card className="dashboard-panel rounded-2xl border">
         <CardHeader>
           <CardTitle>ตัดสต็อกและอนุมัติคำขอเบิก</CardTitle>
-          <CardDescription>ค้นหาวัตถุดิบ ระบุจำนวนในรูปแบบตาราง และค้นหารายการในแท็ปรออนุมัติหรือประวัติได้แยกกัน</CardDescription>
+          <CardDescription>สร้างคำขอเบิก ตรวจสอบรายการรออนุมัติ และบันทึกผลการอนุมัติลงฐานข้อมูลจริง</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="create" className="gap-6">
@@ -263,10 +269,10 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableBody>
                   </Table>
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                    <Button onClick={() => submitRequest("pending")} className="bg-indigo-700 text-white hover:bg-indigo-800">
+                    <Button onClick={() => void submitRequest("pending")} className="bg-indigo-700 text-white hover:bg-indigo-800" disabled={isSubmitting}>
                       ส่งรออนุมัติ
                     </Button>
-                    <Button onClick={() => submitRequest("approved")} className="bg-emerald-700 text-white hover:bg-emerald-800">
+                    <Button onClick={() => void submitRequest("approved")} className="bg-emerald-700 text-white hover:bg-emerald-800" disabled={isSubmitting}>
                       อนุมัติและตัดสต็อกทันที
                     </Button>
                   </div>
@@ -324,7 +330,8 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                                 <Button
                                   size="sm"
                                   className="bg-emerald-700 text-white hover:bg-emerald-800"
-                                  onClick={() => updatePendingStatus(item.transactionId, "approved")}
+                                  onClick={() => void updatePendingStatus(item.transactionId, "approved")}
+                                  disabled={isSubmitting}
                                 >
                                   <CheckCircle2 className="mr-1 h-4 w-4" />
                                   อนุมัติ
@@ -332,7 +339,8 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                                 <Button
                                   size="sm"
                                   className="bg-red-700 text-white hover:bg-red-800"
-                                  onClick={() => updatePendingStatus(item.transactionId, "rejected")}
+                                  onClick={() => void updatePendingStatus(item.transactionId, "rejected")}
+                                  disabled={isSubmitting}
                                 >
                                   <XCircle className="mr-1 h-4 w-4" />
                                   ปฏิเสธ

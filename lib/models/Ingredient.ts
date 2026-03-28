@@ -8,6 +8,7 @@ export interface IIngredient extends Document {
   expiry_date: Date;
   current_qty: number;
   max_qty: number;
+  alert_threshold: number;
   stock_status: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -50,6 +51,12 @@ const IngredientSchema = new Schema<IIngredient>(
       type: Number,
       required: true,
       default: 100,
+      min: 0,
+    },
+    alert_threshold: {
+      type: Number,
+      required: true,
+      default: 10,
       min: 0,
     },
     stock_status: {

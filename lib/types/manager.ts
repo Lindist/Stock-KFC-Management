@@ -13,6 +13,7 @@ export interface ManagerIngredientRow {
   expiryDate: string;
   currentQty: number;
   maxQty: number;
+  alertThreshold: number;
   stockStatus: IngredientStockStatus;
 }
 

@@ -40,12 +40,12 @@ import {
 export const managerMainMenu = [
   { id: "dashboard", name: "แดชบอร์ด", icon: LayoutDashboard, badge: 0 },
   { id: "warehouse", name: "คลังวัตถุดิบ", icon: Package, badge: 0 },
-  { id: "withdraw", name: "ตัดสต๊อก/อนุมัติ", icon: ClipboardList, badge: 3 },
+  { id: "withdraw", name: "ตัดสต๊อก/อนุมัติ", icon: ClipboardList, badge: 0 },
   { id: "notifications", name: "ตั้งค่าแจ้งเตือน", icon: Bell, badge: 0 },
 ] as const;
 
 export const managerOrderMenu = [
-  { id: "purchase-orders", name: "ใบสั่งซื้อ", icon: ShoppingCart, badge: 2 },
+  { id: "purchase-orders", name: "ใบสั่งซื้อ", icon: ShoppingCart, badge: 0 },
   { id: "import-materials", name: "รับวัตถุดิบ", icon: Truck, badge: 0 },
   { id: "stock-report", name: "รายงาน", icon: BarChart2, badge: 0 },
 ] as const;
