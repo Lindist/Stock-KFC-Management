@@ -29,13 +29,41 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
 }
 
+function translateStockStatus(status: string) {
+  if (status === "out_of_stock") return "หมดสต็อก";
+  if (status === "low_stock") return "ใกล้หมด";
+  if (status === "in_stock") return "ปกติ";
+  return status;
+}
+
+function translateDeductionStatus(status: string) {
+  if (status === "approved") return "อนุมัติแล้ว";
+  if (status === "rejected") return "ปฏิเสธ";
+  if (status === "pending") return "รออนุมัติ";
+  return status;
+}
+
+function translateReportType(reportType: ReportType) {
+  if (reportType === "stock_deduction") return "ประวัติตัดสต็อก";
+  if (reportType === "purchase_order") return "ประวัติสั่งซื้อ";
+  return "สรุปสต็อก";
+}
+
+function translatePeriod(period: ReportPeriod) {
+  if (period === "year") return "ปีนี้";
+  if (period === "month") return "เดือนนี้";
+  if (period === "week") return "สัปดาห์นี้";
+  if (period === "day") return "วันนี้";
+  return "กำหนดเอง";
+}
+
 function toStockRows(items: ManagerIngredientRow[]): ReportRow[] {
   return items.map((item) => ({
     key: item.itemId,
     primary: item.itemId,
     secondary: item.itemName,
     metricA: `${item.currentQty} ${item.unit}`,
-    metricB: item.stockStatus,
+    metricB: translateStockStatus(item.stockStatus),
     metricC: formatDate(item.expiryDate),
   }));
 }
@@ -47,7 +75,7 @@ function toDeductionRows(items: ManagerStockDeductionRow[]): ReportRow[] {
     secondary: item.itemName,
     metricA: `${item.deductQty}`,
     metricB: item.requestedBy,
-    metricC: item.status,
+    metricC: translateDeductionStatus(item.status),
   }));
 }
 
@@ -211,13 +239,13 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
             <Card className="border-red-200 bg-red-50/80 shadow-sm">
               <CardHeader className="space-y-1">
                 <CardDescription className="text-red-700">ประเภทรายงาน</CardDescription>
-                <CardTitle className="text-xl text-red-950">{reportType}</CardTitle>
+                <CardTitle className="text-xl text-red-950">{translateReportType(reportType)}</CardTitle>
               </CardHeader>
             </Card>
             <Card className="border-amber-200 bg-amber-50/80 shadow-sm">
               <CardHeader className="space-y-1">
                 <CardDescription className="text-amber-700">ช่วงเวลาที่เลือก</CardDescription>
-                <CardTitle className="text-xl text-amber-950">{period}</CardTitle>
+                <CardTitle className="text-xl text-amber-950">{translatePeriod(period)}</CardTitle>
               </CardHeader>
             </Card>
             <Card className="border-emerald-200 bg-emerald-50/80 shadow-sm">

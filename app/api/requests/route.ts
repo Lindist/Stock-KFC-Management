@@ -4,6 +4,12 @@ import StockDeduction from "@/lib/models/StockDeduction";
 import Ingredient from "@/lib/models/Ingredient";
 import { getSession } from "@/lib/auth/auth";
 
+function createTransactionId() {
+    const timePart = Date.now().toString().slice(-8);
+    const randomPart = Math.floor(100 + Math.random() * 900).toString();
+    return `REQ-${timePart}${randomPart}`.slice(0, 15);
+}
+
 export async function POST(req: Request) {
     try {
         const session = await getSession();
@@ -15,7 +21,7 @@ export async function POST(req: Request) {
         
         await connectDB();
 
-        const transaction_id = `REQ-${Math.floor(1000 + Math.random() * 9000)}`;
+        const transaction_id = createTransactionId();
         const user_id = session.user.id;
 
         const deductions = body.items.map((item: any) => ({

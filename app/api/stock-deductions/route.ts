@@ -5,6 +5,12 @@ import StockDeduction from "@/lib/models/StockDeduction";
 import { getSession } from "@/lib/auth/auth";
 import { deriveIngredientStockStatus } from "@/lib/inventory-utils";
 
+function createTransactionId() {
+  const timePart = Date.now().toString().slice(-8);
+  const randomPart = Math.floor(100 + Math.random() * 900).toString();
+  return `REQ-${timePart}${randomPart}`.slice(0, 15);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -21,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB();
-    const transactionId = `REQ-${Date.now()}`;
+    const transactionId = createTransactionId();
     const timestamp = new Date();
     const createdRows = [];
 

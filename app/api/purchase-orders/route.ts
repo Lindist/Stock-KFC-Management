@@ -31,13 +31,11 @@ export async function POST(request: NextRequest) {
     const poId = String(body.poId ?? "").trim();
     const itemId = String(body.itemId ?? "").trim();
     const supplierName = String(body.supplierName ?? "").trim();
+    const approverId = String(body.approverId ?? "").trim();
     const orderQty = Number(body.orderQty ?? 0);
-    const priceTotal = Number(body.priceTotal ?? 0);
-    const deliveryDate = String(body.deliveryDate ?? "").trim();
-    const receivedQty = Number(body.receivedQty ?? 0);
-    const status = String(body.status ?? "pending");
+    const deliveryDate = new Date();
 
-    if (!poId || !itemId || !supplierName || !deliveryDate || Number.isNaN(orderQty) || Number.isNaN(priceTotal) || Number.isNaN(receivedQty)) {
+    if (!poId || !itemId || !supplierName || !approverId || Number.isNaN(orderQty) || orderQty <= 0) {
       return NextResponse.json({ error: "Invalid purchase order payload" }, { status: 400 });
     }
 
@@ -55,13 +53,13 @@ export async function POST(request: NextRequest) {
     const order = await PurchaseOrder.create({
       po_id: poId,
       item_id: itemId,
-      approver_id: session.user.id,
+      approver_id: approverId,
       supplier_name: supplierName,
       order_qty: orderQty,
-      price_total: priceTotal,
-      delivery_date: new Date(deliveryDate),
-      received_qty: receivedQty,
-      po_status: status,
+      price_total: ingredient.cost * orderQty,
+      delivery_date: deliveryDate,
+      received_qty: 0,
+      po_status: "pending",
     });
 
     return NextResponse.json({
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
       itemName: ingredient.item_name,
       unit: ingredient.unit,
       approverId: order.approver_id,
-      approverName: session.user.name ?? session.user.email ?? session.user.id,
+      approverName: supplierName,
       supplierName,
       orderQty: order.order_qty,
       receivedQty: order.received_qty,

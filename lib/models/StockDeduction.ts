@@ -17,7 +17,7 @@ const StockDeductionSchema = new Schema<IStockDeduction>(
     transaction_id: {
       type: String,
       required: true,
-      maxlength: 15,
+      maxlength: 30,
     },
     item_id: {
       type: String,

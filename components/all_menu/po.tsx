@@ -1,10 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Edit3, FilePlus2, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronsUpDown, Edit3, FilePlus2, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +22,33 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { PurchaseOrderStatus } from "@/lib/types/dashboard";
 import type { ManagerPhaseData, ManagerPurchaseOrderRow } from "@/lib/types/manager";
+
+type IngredientOption = {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  cost: number;
+};
+
+type SupplierOption = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+type PurchaseOrderForm = {
+  poId: string;
+  itemId: string;
+  supplierId: string;
+  supplierName: string;
+  orderQty: number;
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
@@ -39,19 +70,12 @@ function statusLabel(status: PurchaseOrderStatus) {
   return "รอดำเนินการ";
 }
 
-const emptyForm: ManagerPurchaseOrderRow = {
+const emptyForm: PurchaseOrderForm = {
   poId: "",
   itemId: "",
-  itemName: "",
-  unit: "",
-  approverId: "",
-  approverName: "",
+  supplierId: "",
   supplierName: "",
   orderQty: 0,
-  receivedQty: 0,
-  priceTotal: 0,
-  deliveryDate: "",
-  status: "pending",
 };
 
 export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
@@ -62,7 +86,27 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
   const [editingPoId, setEditingPoId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
-  const [form, setForm] = useState<ManagerPurchaseOrderRow>(emptyForm);
+  const [ingredientOpen, setIngredientOpen] = useState(false);
+  const [supplierOpen, setSupplierOpen] = useState(false);
+  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
+  const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
+  const [form, setForm] = useState<PurchaseOrderForm>(emptyForm);
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      const response = await fetch("/api/purchase-orders/options");
+      if (!response.ok) return;
+      const payload = await response.json();
+      setIngredientOptions(payload.ingredients ?? []);
+      setSupplierOptions(payload.suppliers ?? []);
+    };
+
+    void loadOptions();
+  }, []);
+
+  const selectedIngredient = ingredientOptions.find((item) => item.itemId === form.itemId) ?? null;
+  const selectedSupplier = supplierOptions.find((item) => item.id === form.supplierId) ?? null;
+  const computedPriceTotal = selectedIngredient ? selectedIngredient.cost * Math.max(form.orderQty, 0) : 0;
 
   const filteredOrders = useMemo(
     () =>
@@ -83,7 +127,6 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
     setForm({
       ...emptyForm,
       poId: `PO-${String(orders.length + 1).padStart(4, "0")}`,
-      deliveryDate: new Date().toISOString().slice(0, 10),
     });
     setOpen(true);
   };
@@ -92,15 +135,18 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
     setEditingPoId(item.poId);
     setFormError("");
     setForm({
-      ...item,
-      deliveryDate: item.deliveryDate.slice(0, 10),
+      poId: item.poId,
+      itemId: item.itemId,
+      supplierId: item.approverId,
+      supplierName: item.supplierName,
+      orderQty: item.orderQty,
     });
     setOpen(true);
   };
 
   const saveOrder = async () => {
-    if (!form.poId || !form.itemId || !form.supplierName || !form.deliveryDate) {
-      setFormError("กรุณากรอกข้อมูลใบสั่งซื้อให้ครบ");
+    if (!form.poId || !form.itemId || !form.supplierId || form.orderQty <= 0) {
+      setFormError("กรุณาเลือกวัตถุดิบ เลือก supplier และกรอกจำนวนสั่งให้ครบ");
       return;
     }
 
@@ -113,7 +159,13 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
         {
           method: editingPoId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            poId: form.poId,
+            itemId: form.itemId,
+            supplierName: selectedSupplier?.name ?? form.supplierName,
+            approverId: form.supplierId,
+            orderQty: form.orderQty,
+          }),
         }
       );
 
@@ -140,12 +192,10 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
   const deleteOrder = async (poId: string) => {
     try {
       const response = await fetch(`/api/purchase-orders/${poId}`, { method: "DELETE" });
-      if (!response.ok) {
-        return;
-      }
+      if (!response.ok) return;
       setOrders((current) => current.filter((row) => row.poId !== poId));
     } catch {
-      // keep UI state if delete fails
+      // keep UI if delete fails
     }
   };
 
@@ -159,7 +209,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>ใบสั่งซื้อ</CardTitle>
-            <CardDescription>ค้นหา ติดตามสถานะ และจัดการรายการสั่งซื้อวัตถุดิบจาก supplier โดยบันทึกลงฐานข้อมูลจริง</CardDescription>
+            <CardDescription>สร้างและแก้ไขใบสั่งซื้อจากวัตถุดิบจริงในระบบ พร้อมเลือก supplier จากผู้ใช้ที่มีสิทธิ์ store</CardDescription>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-72">
@@ -237,58 +287,117 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingPoId ? "แก้ไขใบสั่งซื้อ" : "เพิ่มใบสั่งซื้อ"}</DialogTitle>
-            <DialogDescription>กรอกรายละเอียด PO เพื่อใช้ติดตามการจัดซื้อและการรับวัตถุดิบเข้าคลัง</DialogDescription>
+            <DialogDescription>เลือกวัตถุดิบและ supplier จากรายการในระบบ แล้วระบบจะคำนวณยอดรวมอัตโนมัติให้</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">เลขที่ PO</p>
               <Input value={form.poId} onChange={(event) => setForm((current) => ({ ...current, poId: event.target.value }))} placeholder="เช่น PO-0001" />
             </div>
+
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Supplier</p>
-              <Input value={form.supplierName} onChange={(event) => setForm((current) => ({ ...current, supplierName: event.target.value }))} placeholder="ชื่อ supplier" />
+              <p className="text-sm font-medium text-slate-700">รหัสวัตถุดิบ / ชื่อวัตถุดิบ / หน่วย</p>
+              <Popover open={ingredientOpen} onOpenChange={setIngredientOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {selectedIngredient ? `${selectedIngredient.itemId} - ${selectedIngredient.itemName} (${selectedIngredient.unit})` : "เลือกวัตถุดิบ"}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[420px] overflow-hidden p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ค้นหาวัตถุดิบ..." />
+                    <div className="border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+                      {ingredientOptions.length} รายการ
+                    </div>
+                    <CommandList className="h-72 max-h-[min(18rem,var(--radix-popover-content-available-height))]">
+                      <CommandEmpty>ไม่พบวัตถุดิบ</CommandEmpty>
+                      <CommandGroup>
+                        {ingredientOptions.map((item) => (
+                          <CommandItem
+                            key={item.itemId}
+                            value={`${item.itemId} ${item.itemName} ${item.unit}`}
+                            onSelect={() => {
+                              setForm((current) => ({ ...current, itemId: item.itemId }));
+                              setIngredientOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", form.itemId === item.itemId ? "opacity-100" : "opacity-0")} />
+                            <span>{item.itemId} - {item.itemName} ({item.unit})</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">รหัสวัตถุดิบ</p>
-              <Input value={form.itemId} onChange={(event) => setForm((current) => ({ ...current, itemId: event.target.value }))} placeholder="เช่น ING001" />
+              <p className="text-sm font-medium text-slate-700">Supplier (สิทธิ์ Store)</p>
+              <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {selectedSupplier ? selectedSupplier.name : "เลือก supplier"}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[360px] overflow-hidden p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ค้นหา supplier..." />
+                    <div className="border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+                      {supplierOptions.length} รายการ
+                    </div>
+                    <CommandList className="max-h-[min(18rem,var(--radix-popover-content-available-height))]">
+                      <CommandEmpty>ไม่พบ supplier</CommandEmpty>
+                      <CommandGroup>
+                        {supplierOptions.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            value={`${user.name} ${user.id} ${user.role}`}
+                            onSelect={() => {
+                              setForm((current) => ({
+                                ...current,
+                                supplierId: user.id,
+                                supplierName: user.name,
+                              }));
+                              setSupplierOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", form.supplierId === user.id ? "opacity-100" : "opacity-0")} />
+                            <span>{user.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">ชื่อวัตถุดิบ</p>
-              <Input value={form.itemName} onChange={(event) => setForm((current) => ({ ...current, itemName: event.target.value }))} placeholder="ชื่อวัตถุดิบ" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">หน่วย</p>
-              <Input value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} placeholder="เช่น box / kg" />
-            </div>
+
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">จำนวนสั่ง</p>
-              <Input type="number" value={form.orderQty} onChange={(event) => setForm((current) => ({ ...current, orderQty: Number(event.target.value) }))} placeholder="จำนวนสั่ง" />
+              <Input type="number" min={1} value={form.orderQty || ""} onChange={(event) => setForm((current) => ({ ...current, orderQty: Number(event.target.value) }))} placeholder="จำนวนสั่ง" />
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">จำนวนที่รับแล้ว</p>
-              <Input type="number" value={form.receivedQty} onChange={(event) => setForm((current) => ({ ...current, receivedQty: Number(event.target.value) }))} placeholder="จำนวนที่รับแล้ว" />
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">หน่วย</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{selectedIngredient?.unit ?? "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">ต้นทุนต่อหน่วย</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{selectedIngredient ? formatCurrency(selectedIngredient.cost) : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">ยอดรวม</p>
+                  <p className="mt-1 text-sm font-semibold text-sky-800">{formatCurrency(computedPriceTotal)}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">ระบบจะตั้งสถานะเป็นรอดำเนินการทุกครั้งที่สร้าง และจะคำนวณยอดรวมจากจำนวนสั่ง x ราคาทุนสินค้าอัตโนมัติ</p>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">ยอดรวม</p>
-              <Input type="number" value={form.priceTotal} onChange={(event) => setForm((current) => ({ ...current, priceTotal: Number(event.target.value) }))} placeholder="ยอดรวม" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">กำหนดส่ง</p>
-              <Input type="date" value={form.deliveryDate.slice(0, 10)} onChange={(event) => setForm((current) => ({ ...current, deliveryDate: event.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">สถานะ</p>
-              <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as PurchaseOrderStatus }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="สถานะ" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">รอดำเนินการ</SelectItem>
-                  <SelectItem value="arrived">ของมาถึงแล้ว</SelectItem>
-                  <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             {formError ? (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
                 {formError}

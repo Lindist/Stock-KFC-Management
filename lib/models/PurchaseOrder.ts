@@ -31,7 +31,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     approver_id: {
       type: String,
       required: true,
-      maxlength: 10,
+      maxlength: 30,
       ref: "User",
     },
     supplier_name: {

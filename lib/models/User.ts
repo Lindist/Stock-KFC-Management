@@ -45,7 +45,7 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
       maxlength: 20,
-      enum: ["admin", "manager", "staff"],
+      enum: ["admin", "manager", "staff", "store"],
       default: "staff",
     },
     fail_count: {

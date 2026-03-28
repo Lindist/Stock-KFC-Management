@@ -51,7 +51,7 @@ export async function PATCH(
       itemName: ingredient.item_name,
       unit: ingredient.unit,
       approverId: order.approver_id,
-      approverName: session.user.name ?? session.user.email ?? session.user.id,
+      approverName: order.supplier_name,
       supplierName: order.supplier_name,
       orderQty: order.order_qty,
       receivedQty: order.received_qty,

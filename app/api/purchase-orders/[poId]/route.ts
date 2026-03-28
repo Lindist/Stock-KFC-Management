@@ -19,17 +19,19 @@ export async function PATCH(
     const nextPoId = String(body.poId ?? "").trim();
     const itemId = String(body.itemId ?? "").trim();
     const supplierName = String(body.supplierName ?? "").trim();
+    const approverId = String(body.approverId ?? "").trim();
     const orderQty = Number(body.orderQty ?? 0);
-    const priceTotal = Number(body.priceTotal ?? 0);
-    const deliveryDate = String(body.deliveryDate ?? "").trim();
-    const receivedQty = Number(body.receivedQty ?? 0);
-    const status = String(body.status ?? "pending");
 
-    if (!nextPoId || !itemId || !supplierName || !deliveryDate || Number.isNaN(orderQty) || Number.isNaN(priceTotal) || Number.isNaN(receivedQty)) {
+    if (!nextPoId || !itemId || !supplierName || !approverId || Number.isNaN(orderQty) || orderQty <= 0) {
       return NextResponse.json({ error: "Invalid purchase order payload" }, { status: 400 });
     }
 
     await connectDB();
+    const existingOrder = await PurchaseOrder.findOne({ po_id: poId });
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+    }
+
     const ingredient = await Ingredient.findOne({ item_id: itemId });
     if (!ingredient) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
@@ -47,19 +49,19 @@ export async function PATCH(
       {
         po_id: nextPoId,
         item_id: itemId,
-        approver_id: session.user.id,
+        approver_id: approverId,
         supplier_name: supplierName,
         order_qty: orderQty,
-        price_total: priceTotal,
-        delivery_date: new Date(deliveryDate),
-        received_qty: receivedQty,
-        po_status: status,
+        price_total: ingredient.cost * orderQty,
+        delivery_date: existingOrder.delivery_date,
+        received_qty: existingOrder.received_qty,
+        po_status: existingOrder.po_status,
       },
       { returnDocument: "after" }
     );
 
     if (!order) {
-      return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+      return NextResponse.json({ error: "Purchase order not found after update" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -68,7 +70,7 @@ export async function PATCH(
       itemName: ingredient.item_name,
       unit: ingredient.unit,
       approverId: order.approver_id,
-      approverName: session.user.name ?? session.user.email ?? session.user.id,
+      approverName: supplierName,
       supplierName: order.supplier_name,
       orderQty: order.order_qty,
       receivedQty: order.received_qty,
