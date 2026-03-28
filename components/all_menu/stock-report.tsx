@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { ReportType } from "@/lib/types/dashboard";
 import type { ManagerIngredientRow, ManagerPhaseData, ManagerPurchaseOrderRow, ManagerStockDeductionRow } from "@/lib/types/manager";
 
@@ -101,6 +102,7 @@ function getColumnLabels(reportType: ReportType) {
 }
 
 export function StockReport({ data }: { data: ManagerPhaseData | null }) {
+  const { managerData } = useManagerDataCache();
   const [reportType, setReportType] = useState<ReportType>("stock_summary");
   const [period, setPeriod] = useState<ReportPeriod>("month");
   const [dateFrom, setDateFrom] = useState(new Date().toISOString().slice(0, 10));
@@ -108,11 +110,12 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
 
   const reportRows = useMemo(() => {
-    if (!data) return [];
-    if (reportType === "stock_deduction") return toDeductionRows(data.stockDeductions);
-    if (reportType === "purchase_order") return toPurchaseRows(data.purchaseOrders);
-    return toStockRows(data.ingredients);
-  }, [data, reportType]);
+    const source = managerData ?? data;
+    if (!source) return [];
+    if (reportType === "stock_deduction") return toDeductionRows(source.stockDeductions);
+    if (reportType === "purchase_order") return toPurchaseRows(source.purchaseOrders);
+    return toStockRows(source.ingredients);
+  }, [data, managerData, reportType]);
 
   const columnLabels = getColumnLabels(reportType);
 

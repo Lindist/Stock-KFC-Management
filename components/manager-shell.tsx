@@ -14,6 +14,7 @@ import { StockReport } from "@/components/all_menu/stock-report";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
 import { ManagerNotifications } from "@/components/manager-notifications";
 import type { ManagerPhaseData } from "@/lib/types/manager";
+import { ManagerDataCacheProvider } from "@/components/manager-data-cache";
 
 const menuMeta = [...managerMainMenu, ...managerOrderMenu];
 
@@ -74,7 +75,11 @@ export function ManagerShell({
           </div>
         </header>
 
-        <main className="p-8">{menuComponents[activeItem]}</main>
+        <main className="p-8">
+          <ManagerDataCacheProvider initialData={managerData}>
+            {menuComponents[activeItem]}
+          </ManagerDataCacheProvider>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

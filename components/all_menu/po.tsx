@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagerDataCache } from "@/components/manager-data-cache";
 import { cn } from "@/lib/utils";
 import type { PurchaseOrderStatus } from "@/lib/types/dashboard";
 import type { ManagerPhaseData, ManagerPurchaseOrderRow } from "@/lib/types/manager";
@@ -79,7 +80,7 @@ const emptyForm: PurchaseOrderForm = {
 };
 
 export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
-  const [orders, setOrders] = useState<ManagerPurchaseOrderRow[]>(data?.purchaseOrders ?? []);
+  const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PurchaseOrderStatus>("all");
   const [open, setOpen] = useState(false);
@@ -88,16 +89,25 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
   const [formError, setFormError] = useState("");
   const [ingredientOpen, setIngredientOpen] = useState(false);
   const [supplierOpen, setSupplierOpen] = useState(false);
-  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
   const [form, setForm] = useState<PurchaseOrderForm>(emptyForm);
+  const orders = managerData?.purchaseOrders ?? data?.purchaseOrders ?? [];
+  const ingredientOptions = useMemo<IngredientOption[]>(
+    () =>
+      (managerData?.ingredients ?? data?.ingredients ?? []).map((item) => ({
+        itemId: item.itemId,
+        itemName: item.itemName,
+        unit: item.unit,
+        cost: item.cost,
+      })),
+    [data?.ingredients, managerData?.ingredients]
+  );
 
   useEffect(() => {
     const loadOptions = async () => {
       const response = await fetch("/api/purchase-orders/options");
       if (!response.ok) return;
       const payload = await response.json();
-      setIngredientOptions(payload.ingredients ?? []);
       setSupplierOptions(payload.suppliers ?? []);
     };
 
@@ -177,9 +187,23 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
 
       const nextOrder = payload as ManagerPurchaseOrderRow;
       if (editingPoId) {
-        setOrders((current) => current.map((item) => (item.poId === editingPoId ? nextOrder : item)));
+        updateManagerData((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            purchaseOrders: current.purchaseOrders.map((item) =>
+              item.poId === editingPoId ? nextOrder : item
+            ),
+          };
+        });
       } else {
-        setOrders((current) => [nextOrder, ...current]);
+        updateManagerData((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            purchaseOrders: [nextOrder, ...current.purchaseOrders],
+          };
+        });
       }
       setOpen(false);
     } catch {
@@ -193,7 +217,13 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
     try {
       const response = await fetch(`/api/purchase-orders/${poId}`, { method: "DELETE" });
       if (!response.ok) return;
-      setOrders((current) => current.filter((row) => row.poId !== poId));
+      updateManagerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          purchaseOrders: current.purchaseOrders.filter((row) => row.poId !== poId),
+        };
+      });
     } catch {
       // keep UI if delete fails
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BellRing, CheckCheck, Clock3, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { ManagerIngredientRow, ManagerPhaseData } from "@/lib/types/manager";
 
 function isExpired(dateString: string) {
@@ -23,12 +24,19 @@ function defaultThreshold(item: ManagerIngredientRow) {
 }
 
 export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) {
-  const [ingredients, setIngredients] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
+  const { managerData, updateManagerData } = useManagerDataCache();
   const [thresholds, setThresholds] = useState<Record<string, number>>(
     () => Object.fromEntries((data?.ingredients ?? []).map((item) => [item.itemId, defaultThreshold(item)]))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const ingredients = managerData?.ingredients ?? data?.ingredients ?? [];
+
+  useEffect(() => {
+    setThresholds(
+      Object.fromEntries(ingredients.map((item) => [item.itemId, item.alertThreshold]))
+    );
+  }, [ingredients]);
 
   const summary = useMemo(() => {
     const expiredCount = ingredients.filter((item) => isExpired(item.expiryDate)).length;
@@ -61,12 +69,16 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
         return;
       }
 
-      setIngredients((current) =>
-        current.map((item) => ({
-          ...item,
-          alertThreshold: thresholds[item.itemId] ?? item.alertThreshold,
-        }))
-      );
+      updateManagerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          ingredients: current.ingredients.map((item) => ({
+            ...item,
+            alertThreshold: thresholds[item.itemId] ?? item.alertThreshold,
+          })),
+        };
+      });
       setIsSaved(true);
     } finally {
       setIsSubmitting(false);
@@ -125,7 +137,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
             <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
             <CardDescription>ปรับค่า threshold รายแถว และบันทึกลงฐานข้อมูลจริงด้วยปุ่มเดียว</CardDescription>
           </div>
-          <Button onClick={() => void saveThresholds()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
+          <Button onClick={() => void saveThresholds()} className={`${isSaved ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-sky-700 text-white hover:bg-sky-800'}`} disabled={isSubmitting}>
             {isSubmitting ? "กำลังบันทึก..." : isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
           </Button>
         </CardHeader>

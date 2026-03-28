@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { IngredientStockStatus } from "@/lib/types/dashboard";
 import type { ManagerIngredientRow, ManagerPhaseData } from "@/lib/types/manager";
 
@@ -56,7 +57,7 @@ type IngredientFormState = {
 };
 
 export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }) {
-  const [items, setItems] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
+  const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | IngredientStockStatus>("all");
   const [open, setOpen] = useState(false);
@@ -72,6 +73,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
     currentQty: 0,
     maxQty: 0,
   });
+  const items = managerData?.ingredients ?? data?.ingredients ?? [];
 
   const filteredItems = useMemo(
     () =>
@@ -175,9 +177,23 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
 
       const nextItem = mapIngredientRow(payload);
       if (editingItemId) {
-        setItems((current) => current.map((item) => (item.itemId === editingItemId ? nextItem : item)));
+        updateManagerData((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            ingredients: current.ingredients.map((item) =>
+              item.itemId === editingItemId ? nextItem : item
+            ),
+          };
+        });
       } else {
-        setItems((current) => [nextItem, ...current]);
+        updateManagerData((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            ingredients: [nextItem, ...current.ingredients],
+          };
+        });
       }
       setOpen(false);
     } catch {
@@ -193,7 +209,13 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
       if (!response.ok) {
         return;
       }
-      setItems((current) => current.filter((row) => row.itemId !== itemId));
+      updateManagerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          ingredients: current.ingredients.filter((row) => row.itemId !== itemId),
+        };
+      });
     } catch {
       // Keep current UI state when delete fails.
     }
@@ -287,7 +309,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">รหัสวัตถุดิบ</p>
-              <Input value={form.itemId} onChange={(e) => setForm((current) => ({ ...current, itemId: e.target.value }))} placeholder="เช่น ING001" />
+              <Input value={form.itemId} onChange={(e) => setForm((current) => ({ ...current, itemId: e.target.value }))} placeholder="เช่น ING001" disabled={true} />
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">ชื่อวัตถุดิบ</p>

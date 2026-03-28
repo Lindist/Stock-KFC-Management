@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useManagerDataCache } from "@/components/manager-data-cache";
+import { deriveIngredientStockStatus } from "@/lib/inventory-utils";
 import type { StockDeductionStatus } from "@/lib/types/dashboard";
 import type { ManagerIngredientRow, ManagerPhaseData, ManagerStockDeductionRow } from "@/lib/types/manager";
 
@@ -40,14 +42,15 @@ type GroupedRequest = {
 };
 
 export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData | null }) {
-  const [ingredients, setIngredients] = useState<ManagerIngredientRow[]>(data?.ingredients ?? []);
-  const [deductions, setDeductions] = useState<ManagerStockDeductionRow[]>(data?.stockDeductions ?? []);
+  const { managerData, updateManagerData } = useManagerDataCache();
   const [createQuery, setCreateQuery] = useState("");
   const [pendingQuery, setPendingQuery] = useState("");
   const [historyQuery, setHistoryQuery] = useState("");
   const [quantityById, setQuantityById] = useState<Record<string, number>>({});
   const [noteById, setNoteById] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const ingredients = managerData?.ingredients ?? data?.ingredients ?? [];
+  const deductions = managerData?.stockDeductions ?? data?.stockDeductions ?? [];
 
   const filteredIngredients = useMemo(
     () =>
@@ -133,19 +136,26 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       const payload = await response.json();
       const createdItems = payload.items as ManagerStockDeductionRow[];
 
-      setDeductions((current) => [...createdItems, ...current]);
-      if (status === "approved") {
-        setIngredients((current) =>
-          current.map((item) => {
-            const matched = createdItems.find((record) => record.itemId === item.itemId);
-            if (!matched) return item;
-            return {
-              ...item,
-              currentQty: Math.max(0, item.currentQty - matched.deductQty),
-            };
-          })
-        );
-      }
+      updateManagerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          stockDeductions: [...createdItems, ...current.stockDeductions],
+          ingredients:
+            status === "approved"
+              ? current.ingredients.map((item) => {
+                  const matched = createdItems.find((record) => record.itemId === item.itemId);
+                  if (!matched) return item;
+                  const nextQty = Math.max(0, item.currentQty - matched.deductQty);
+                  return {
+                    ...item,
+                    currentQty: nextQty,
+                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty),
+                  };
+                })
+              : current.ingredients,
+        };
+      });
 
       setQuantityById({});
       setNoteById({});
@@ -172,13 +182,39 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
         status: StockDeductionStatus;
       }>;
 
-      setDeductions((current) =>
-        current.map((item) =>
-          item.transactionId === transactionId
-            ? { ...item, status: payload[0]?.status ?? status }
-            : item
-        )
-      );
+      updateManagerData((current) => {
+        if (!current) return current;
+
+        const approvedRows =
+          status === "approved"
+            ? current.stockDeductions.filter(
+                (item) => item.transactionId === transactionId && item.status === "pending"
+              )
+            : [];
+
+        return {
+          ...current,
+          stockDeductions: current.stockDeductions.map((item) =>
+            item.transactionId === transactionId
+              ? { ...item, status: payload[0]?.status ?? status }
+              : item
+          ),
+          ingredients:
+            status === "approved"
+              ? current.ingredients.map((item) => {
+                  const relatedRows = approvedRows.filter((row) => row.itemId === item.itemId);
+                  if (relatedRows.length === 0) return item;
+                  const deductTotal = relatedRows.reduce((sum, row) => sum + row.deductQty, 0);
+                  const nextQty = Math.max(0, item.currentQty - deductTotal);
+                  return {
+                    ...item,
+                    currentQty: nextQty,
+                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty),
+                  };
+                })
+              : current.ingredients,
+        };
+      });
     } finally {
       setIsSubmitting(false);
     }

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { ManagerPhaseData, ManagerPurchaseOrderRow } from "@/lib/types/manager";
 
 function formatDate(value: string) {
@@ -15,10 +16,11 @@ function formatDate(value: string) {
 }
 
 export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) {
-  const [orders, setOrders] = useState<ManagerPurchaseOrderRow[]>(data?.purchaseOrders ?? []);
+  const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
   const [receivedQtyMap, setReceivedQtyMap] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const orders = managerData?.purchaseOrders ?? data?.purchaseOrders ?? [];
 
   const matchedOrders = useMemo(
     () =>
@@ -58,9 +60,27 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
       }
 
       const payload = await response.json();
-      setOrders((current) =>
-        current.map((item) => (item.poId === poId ? (payload as ManagerPurchaseOrderRow) : item))
-      );
+      const nextOrder = payload as ManagerPurchaseOrderRow & {
+        ingredient?: { itemId: string; currentQty: number; stockStatus: string };
+      };
+      updateManagerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          purchaseOrders: current.purchaseOrders.map((item) =>
+            item.poId === poId ? nextOrder : item
+          ),
+          ingredients: current.ingredients.map((item) =>
+            item.itemId === nextOrder.ingredient?.itemId
+              ? {
+                  ...item,
+                  currentQty: nextOrder.ingredient.currentQty,
+                  stockStatus: nextOrder.ingredient.stockStatus as typeof item.stockStatus,
+                }
+              : item
+          ),
+        };
+      });
     } finally {
       setIsSubmitting(false);
     }
