@@ -2,9 +2,10 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { DashboardManager } from "@/components/all_menu/dashboardmanager";
 import { CreateMaterialRequest } from "@/components/all_menu/create-a-material-requisition-request";
-import { ManagerNotifications } from "@/components/manager-notifications";
+import { DashboardManager } from "@/components/all_menu/dashboardmanager";
+import { DashboardDataCacheProvider } from "@/components/dashboard-data-cache";
+import { ManagerNotifications, NotificationsBanner } from "@/components/manager-notifications";
 import { SidebarRequest, type RequestMenuItemId, requestMenu } from "@/components/sidebar-request";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
@@ -41,27 +42,38 @@ export function StaffShell({
   return (
     <SidebarProvider>
       <SidebarRequest user={user} activeItem={activeItem} onSelect={setActiveItem} />
-      <SidebarInset className="dashboard-shell min-h-screen font-sans">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger className="-ml-2 text-slate-500 hover:text-slate-800" />
-            <h1 className="text-sm font-medium text-slate-600">{activeMenu?.name}</h1>
-          </div>
+      <DashboardDataCacheProvider initialData={dashboardData}>
+        <SidebarInset className="dashboard-shell min-h-screen font-sans">
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="-ml-2 text-slate-500 hover:text-slate-800" />
+              <h1 className="text-sm font-medium text-slate-600">{activeMenu?.name}</h1>
+            </div>
 
-          <div className="flex items-center gap-4 rounded-full border bg-white/95 px-3 py-1.5 shadow-sm">
-            <span className="text-sm font-medium text-slate-700">พนักงาน</span>
-            <ManagerNotifications
+            <div className="flex items-center gap-4 rounded-full border bg-white/95 px-3 py-1.5 shadow-sm">
+              <span className="text-sm font-medium text-slate-700">เธเธเธฑเธเธเธฒเธ</span>
+              <ManagerNotifications
+                data={dashboardData}
+                onOpenDashboardTab={(tab) => {
+                  setActiveItem("dashboard");
+                  setDashboardTab(tab);
+                }}
+              />
+            </div>
+          </header>
+
+          <main className="space-y-6 p-8">
+            <NotificationsBanner
               data={dashboardData}
               onOpenDashboardTab={(tab) => {
                 setActiveItem("dashboard");
                 setDashboardTab(tab);
               }}
             />
-          </div>
-        </header>
-
-        <main className="p-8">{requestComponents[activeItem]}</main>
-      </SidebarInset>
+            {requestComponents[activeItem]}
+          </main>
+        </SidebarInset>
+      </DashboardDataCacheProvider>
     </SidebarProvider>
   );
 }

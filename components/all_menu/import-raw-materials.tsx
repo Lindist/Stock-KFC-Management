@@ -149,7 +149,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                     </TableRow>
                   ) : (
                     arrivedOrders.map((item, index) => (
-                      <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-sky-50/60">
+                      <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-sky-100/90">
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>
@@ -204,7 +204,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                     </TableRow>
                   ) : (
                     receivedOrders.map((item, index) => (
-                      <TableRow key={`${item.poId}-${item.receivedQty}-${index}`} className="transition-colors hover:bg-emerald-50/60">
+                      <TableRow key={`${item.poId}-${item.receivedQty}-${index}`} className="transition-colors hover:bg-emerald-100/90">
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>

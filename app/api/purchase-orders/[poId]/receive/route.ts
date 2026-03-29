@@ -38,7 +38,7 @@ export async function PATCH(
     const nextQty = ingredient.current_qty + quantityDiff;
 
     ingredient.current_qty = nextQty;
-    ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0);
+    ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
     await ingredient.save();
 
     order.received_qty = receivedQty;

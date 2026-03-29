@@ -13,12 +13,27 @@ import type {
 } from "@/lib/types/dashboard";
 import type { ManagerPhaseData } from "@/lib/types/manager";
 
-const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"] as const;
+const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"] as const;
 const ALERT_TYPES = ["low_stock", "expiry", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
-const IS_READ_VALUES = ["Y", "N"] as const;
 
-function deriveIngredientStockStatus(currentQty: number, maxQty: number): IngredientStockStatus {
+function deriveIngredientStockStatus(
+  currentQty: number,
+  maxQty: number,
+  expiryDate?: Date | string | null
+): IngredientStockStatus {
+  if (expiryDate && new Date(expiryDate).getTime() < Date.now()) {
+    return "expired";
+  }
+
+  if (expiryDate) {
+    const expiryTime = new Date(expiryDate).getTime();
+    const diff = expiryTime - Date.now();
+    if (diff >= 0 && diff <= 3 * 24 * 60 * 60 * 1000) {
+      return "expiring_soon";
+    }
+  }
+
   if (currentQty <= 0) {
     return "out_of_stock";
   }
@@ -56,10 +71,6 @@ function coercePurchaseOrderStatus(value: string): PurchaseOrderStatus {
   return (PURCHASE_ORDER_STATUSES as readonly string[]).includes(value)
     ? (value as PurchaseOrderStatus)
     : "pending";
-}
-
-function coerceIsRead(value: string): "Y" | "N" {
-  return (IS_READ_VALUES as readonly string[]).includes(value) ? (value as "Y" | "N") : "N";
 }
 
 async function resolveUserNames(userIds: string[]) {
@@ -152,7 +163,7 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       currentQty: item.current_qty,
       maxQty: item.max_qty ?? 0,
       alertThreshold: item.alert_threshold ?? Math.max(10, Math.floor((item.max_qty ?? 0) * 0.2)),
-      stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0),
+      stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0, item.expiry_date),
     })),
     stockDeductions: stockDeductions.map((item) => ({
       transactionId: item.transaction_id,
@@ -174,7 +185,6 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       alertType: coerceAlertType(item.alert_type),
       alertQty: item.alert_qty,
       alertTime: toIsoString(item.alert_time),
-      isRead: coerceIsRead(item.is_read),
     })),
     purchaseOrders: purchaseOrders.map((item) => ({
       poId: item.po_id,

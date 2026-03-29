@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useManagerDataCache } from "@/components/manager-data-cache";
+import { deriveIngredientStockStatus } from "@/lib/inventory-utils";
 import type { IngredientStockStatus } from "@/lib/types/dashboard";
 import type { ManagerIngredientRow, ManagerPhaseData } from "@/lib/types/manager";
 
@@ -28,13 +29,21 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(value);
 }
 
-function computeStockStatus(qty: number, maxQty: number): IngredientStockStatus {
-  if (qty <= 0) return "out_of_stock";
-  if (maxQty > 0 && qty / maxQty <= 0.2) return "low_stock";
-  return "in_stock";
+function computeStockStatus(qty: number, maxQty: number, expiryDate?: string) {
+  return deriveIngredientStockStatus(qty, maxQty, expiryDate);
+}
+
+function readableStatusLabel(status: IngredientStockStatus) {
+  if (status === "expired") return "หมดอายุ";
+  if (status === "expiring_soon") return "ใกล้หมดอายุ";
+  if (status === "out_of_stock") return "หมดสต็อก";
+  if (status === "low_stock") return "ใกล้หมด";
+  return "ปกติ";
 }
 
 function badgeClass(status: IngredientStockStatus) {
+  if (status === "expired") return "border-violet-200 bg-violet-50 text-violet-700";
+  if (status === "expiring_soon") return "border-orange-200 bg-orange-50 text-orange-700";
   if (status === "out_of_stock") return "border-red-200 bg-red-50 text-red-700";
   if (status === "low_stock") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -247,6 +256,8 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                 <SelectItem value="in_stock">ปกติ</SelectItem>
                 <SelectItem value="low_stock">ใกล้หมด</SelectItem>
                 <SelectItem value="out_of_stock">หมดสต็อก</SelectItem>
+                <SelectItem value="expiring_soon">ใกล้หมดอายุ</SelectItem>
+                <SelectItem value="expired">หมดอายุ</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={openCreate} className="bg-sky-700 text-white hover:bg-sky-800">
@@ -272,14 +283,14 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => (
-                <TableRow key={item.itemId} className="transition-colors hover:bg-sky-50/60">
+                <TableRow key={item.itemId} className="transition-colors hover:bg-sky-100/90">
                   <TableCell className="font-medium">{item.itemId}</TableCell>
                   <TableCell>{item.itemName}</TableCell>
                   <TableCell>{item.currentQty}</TableCell>
                   <TableCell>{item.maxQty}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell>
-                    <Badge className={badgeClass(item.stockStatus)}>{statusLabel(item.stockStatus)}</Badge>
+                    <Badge className={badgeClass(item.stockStatus)}>{readableStatusLabel(item.stockStatus)}</Badge>
                   </TableCell>
                   <TableCell>{formatDate(item.expiryDate)}</TableCell>
                   <TableCell>{formatCurrency(item.cost)}</TableCell>
@@ -339,8 +350,8 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
               <p className="text-sm font-medium text-slate-700">สถานะที่ระบบคำนวณ</p>
               <p className="mt-2 text-sm text-slate-600">หากคงเหลือเป็น 0 จะแสดงหมดสต็อก และหากคงเหลือน้อยกว่าหรือเท่ากับ 20% ของ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ จะแสดงใกล้หมด</p>
               <div className="mt-3">
-                <Badge className={badgeClass(computeStockStatus(form.currentQty, form.maxQty))}>
-                  {statusLabel(computeStockStatus(form.currentQty, form.maxQty))}
+                <Badge className={badgeClass(computeStockStatus(form.currentQty, form.maxQty, form.expiryDate))}>
+                  {readableStatusLabel(computeStockStatus(form.currentQty, form.maxQty, form.expiryDate))}
                 </Badge>
               </div>
             </div>

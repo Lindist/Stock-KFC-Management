@@ -165,7 +165,6 @@ const mockLowStockAlerts = [
     alert_type: "low_stock",
     alert_qty: 20,
     alert_time: new Date(now.getTime() - 1000 * 60 * 60 * 2),
-    is_read: "N",
   },
   {
     alert_id: "ALT002",
@@ -173,7 +172,6 @@ const mockLowStockAlerts = [
     alert_type: "out_of_stock",
     alert_qty: 0,
     alert_time: new Date(now.getTime() - 1000 * 60 * 60 * 6),
-    is_read: "N",
   },
   {
     alert_id: "ALT003",
@@ -181,7 +179,6 @@ const mockLowStockAlerts = [
     alert_type: "expiry",
     alert_qty: 600,
     alert_time: new Date(now.getTime() - 1000 * 60 * 60 * 24),
-    is_read: "Y",
   },
 ];
 

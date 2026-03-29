@@ -38,7 +38,6 @@ export interface ManagerLowStockAlertRow {
   alertType: LowStockAlertType;
   alertQty: number;
   alertTime: string;
-  isRead: "Y" | "N";
 }
 
 export interface ManagerPurchaseOrderRow {

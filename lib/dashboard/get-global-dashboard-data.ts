@@ -20,12 +20,27 @@ import type {
 
 const TABLE_LIMIT = 6;
 
-const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock"] as const;
+const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"] as const;
 const ALERT_TYPES = ["low_stock", "expiry", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
-const IS_READ_VALUES = ["Y", "N"] as const;
 
-function deriveIngredientStockStatus(currentQty: number, maxQty: number): IngredientStockStatus {
+function deriveIngredientStockStatus(
+  currentQty: number,
+  maxQty: number,
+  expiryDate?: Date | string | null
+): IngredientStockStatus {
+  if (expiryDate && new Date(expiryDate).getTime() < Date.now()) {
+    return "expired";
+  }
+
+  if (expiryDate) {
+    const expiryTime = new Date(expiryDate).getTime();
+    const diff = expiryTime - Date.now();
+    if (diff >= 0 && diff <= 3 * 24 * 60 * 60 * 1000) {
+      return "expiring_soon";
+    }
+  }
+
   if (currentQty <= 0) {
     return "out_of_stock";
   }
@@ -53,10 +68,6 @@ function coercePurchaseOrderStatus(value: string): PurchaseOrderStatus {
     : "pending";
 }
 
-function coerceIsRead(value: string): "Y" | "N" {
-  return (IS_READ_VALUES as readonly string[]).includes(value) ? (value as "Y" | "N") : "N";
-}
-
 function toIsoString(value: Date | string | null | undefined) {
   if (!value) {
     return "";
@@ -71,23 +82,31 @@ function isObjectIdString(value: string) {
 
 export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
   await connectDB();
+  const now = new Date();
+  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
   const [
     totalIngredients,
     totalLowStockAlerts,
     pendingDeductionApprovals,
     pendingPurchaseOrders,
+    expiringIngredients,
+    expiredIngredients,
     ingredients,
+    expiryAlerts,
     stockDeductions,
     lowStockAlerts,
     purchaseOrders,
     receipts,
   ] = await Promise.all([
     Ingredient.countDocuments(),
-    LowStockAlert.countDocuments({ is_read: "N" }),
+    LowStockAlert.countDocuments(),
     StockDeduction.countDocuments({ status: "pending" }),
     PurchaseOrder.countDocuments({ po_status: "pending" }),
+    Ingredient.countDocuments({ expiry_date: { $gte: now, $lte: threeDaysFromNow } }),
+    Ingredient.countDocuments({ expiry_date: { $lt: now } }),
     Ingredient.find({}).sort({ updatedAt: -1 }).limit(TABLE_LIMIT),
+    Ingredient.find({ expiry_date: { $lte: threeDaysFromNow } }).sort({ expiry_date: 1 }).limit(TABLE_LIMIT),
     StockDeduction.find({}).sort({ deduct_time: -1 }).limit(TABLE_LIMIT),
     LowStockAlert.find({}).sort({ alert_time: -1 }).limit(TABLE_LIMIT),
     PurchaseOrder.find({}).sort({ createdAt: -1 }).limit(TABLE_LIMIT),
@@ -100,6 +119,10 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
   const userIds = new Set<string>();
 
   for (const item of ingredients) {
+    ingredientIds.add(item.item_id);
+  }
+
+  for (const item of expiryAlerts) {
     ingredientIds.add(item.item_id);
   }
 
@@ -214,7 +237,17 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
     cost: item.cost,
     expiryDate: toIsoString(item.expiry_date),
     currentQty: item.current_qty,
-    stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0),
+    stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0, item.expiry_date),
+  }));
+
+  const expiryAlertRows: IngredientDashboardRow[] = expiryAlerts.map((item) => ({
+    itemId: item.item_id,
+    itemName: item.item_name,
+    unit: item.unit,
+    cost: item.cost,
+    expiryDate: toIsoString(item.expiry_date),
+    currentQty: item.current_qty,
+    stockStatus: deriveIngredientStockStatus(item.current_qty, item.max_qty ?? 0, item.expiry_date),
   }));
 
   const stockDeductionRows: StockDeductionDashboardRow[] = stockDeductions.map((item) => ({
@@ -235,7 +268,6 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
     alertType: coerceAlertType(item.alert_type),
     alertQty: item.alert_qty,
     alertTime: toIsoString(item.alert_time),
-    isRead: coerceIsRead(item.is_read),
   }));
 
   const purchaseOrderRows: PurchaseOrderDashboardRow[] = purchaseOrders.map((item) => ({
@@ -267,14 +299,17 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
   return {
     metrics,
     ingredients: ingredientRows,
+    expiryAlerts: expiryAlertRows,
     stockDeductions: stockDeductionRows,
     lowStockAlerts: lowStockAlertRows,
     purchaseOrders: purchaseOrderRows,
     receipts: receiptRows,
     highlight: {
-      unreadAlerts: totalLowStockAlerts,
+      lowStockAlerts: totalLowStockAlerts,
       pendingDeductionApprovals,
       pendingPurchaseOrders,
+      expiringIngredients,
+      expiredIngredients,
     },
     generatedAt: new Date().toISOString(),
   };

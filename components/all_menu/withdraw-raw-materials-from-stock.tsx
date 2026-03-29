@@ -150,7 +150,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                   return {
                     ...item,
                     currentQty: nextQty,
-                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty),
+                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty, item.expiryDate),
                   };
                 })
               : current.ingredients,
@@ -209,7 +209,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                   return {
                     ...item,
                     currentQty: nextQty,
-                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty),
+                    stockStatus: deriveIngredientStockStatus(nextQty, item.maxQty, item.expiryDate),
                   };
                 })
               : current.ingredients,
@@ -268,7 +268,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableHeader>
                     <TableBody>
                       {filteredIngredients.map((item) => (
-                        <TableRow key={item.itemId} className="transition-colors hover:bg-red-50/60">
+                        <TableRow key={item.itemId} className="transition-colors hover:bg-red-100/90">
                           <TableCell className="font-medium">{item.itemId}</TableCell>
                           <TableCell>{item.itemName}</TableCell>
                           <TableCell>{item.currentQty}</TableCell>
@@ -348,7 +348,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                         </TableRow>
                       ) : (
                         pendingGroups.map((item, index) => (
-                          <TableRow key={`${item.transactionId}-${index}`} className="transition-colors hover:bg-amber-50/60">
+                          <TableRow key={`${item.transactionId}-${index}`} className="transition-colors hover:bg-amber-100/90">
                             <TableCell className="font-medium">{item.transactionId}</TableCell>
                             <TableCell>
                               <div className="space-y-1">
@@ -417,7 +417,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableHeader>
                     <TableBody>
                       {filteredHistory.map((item, index) => (
-                        <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-50/60">
+                        <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-100/90">
                           <TableCell className="font-medium">{item.transactionId}</TableCell>
                           <TableCell>{item.itemName}</TableCell>
                           <TableCell>{item.requestedBy}</TableCell>

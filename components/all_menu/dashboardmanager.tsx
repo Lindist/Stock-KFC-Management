@@ -3,14 +3,12 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
-  BellRing,
   Boxes,
   CheckCircle2,
   ClipboardCheck,
   PackageCheck,
   RefreshCw,
 } from "lucide-react";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDashboardDataCache } from "@/components/dashboard-data-cache";
 import type {
   GlobalDashboardData,
   IngredientStockStatus,
@@ -45,7 +44,7 @@ const metricIcons = {
 } as const;
 
 const rowHoverClass =
-  "hover:bg-[rgba(127,29,29,0.055)] hover:shadow-[inset_4px_0_0_0_rgba(185,28,28,0.88)]";
+  "transition-colors hover:bg-[rgba(127,29,29,0.11)] hover:shadow-[inset_4px_0_0_0_rgba(185,28,28,0.94)]";
 
 function formatDate(value: string) {
   if (!value) {
@@ -99,6 +98,14 @@ function metricIconClass(tone: keyof typeof metricIcons) {
 }
 
 function stockStatusLabel(status: IngredientStockStatus) {
+  if (status === "expired") {
+    return "หมดอายุ";
+  }
+
+  if (status === "expiring_soon") {
+    return "ใกล้หมดอายุ";
+  }
+
   if (status === "out_of_stock") {
     return "หมดสต๊อก";
   }
@@ -111,6 +118,10 @@ function stockStatusLabel(status: IngredientStockStatus) {
 }
 
 function stockStatusBadgeVariant(status: IngredientStockStatus) {
+  if (status === "expired" || status === "expiring_soon") {
+    return "secondary";
+  }
+
   if (status === "out_of_stock") {
     return "destructive";
   }
@@ -123,6 +134,14 @@ function stockStatusBadgeVariant(status: IngredientStockStatus) {
 }
 
 function stockStatusBadgeClass(status: IngredientStockStatus) {
+  if (status === "expired") {
+    return "border-violet-200 bg-violet-50 text-violet-700";
+  }
+
+  if (status === "expiring_soon") {
+    return "border-orange-200 bg-orange-50 text-orange-700";
+  }
+
   if (status === "out_of_stock") {
     return "border-red-200 bg-red-50 text-red-700";
   }
@@ -144,6 +163,18 @@ function alertTypeLabel(type: LowStockAlertType) {
   }
 
   return "สต๊อกต่ำ";
+}
+
+function alertTypeBadgeClass(type: LowStockAlertType) {
+  if (type === "out_of_stock") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (type === "expiry") {
+    return "border-orange-200 bg-orange-50 text-orange-700";
+  }
+
+  return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 function deductionStatusLabel(status: StockDeductionStatus) {
@@ -206,14 +237,6 @@ function orderBadgeClass(status: PurchaseOrderStatus) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
-function alertReadBadgeClass(isRead: "Y" | "N") {
-  if (isRead === "Y") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-
-  return "border-red-200 bg-red-50 text-red-700";
-}
-
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="dashboard-panel flex min-h-40 items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
@@ -223,16 +246,9 @@ function EmptyState({ message }: { message: string }) {
 }
 
 export function DashboardManager({ data, initialTab, onTabChange }: DashboardManagerProps) {
+  const { dashboardData } = useDashboardDataCache();
+  const source = dashboardData ?? data;
   const [activeTab, setActiveTab] = useState(initialTab ?? "ingredients");
-  const [showGlobalAlert, setShowGlobalAlert] = useState(true);
-
-  const hasAttention = useMemo(
-    () =>
-      data.highlight.unreadAlerts > 0 ||
-      data.highlight.pendingDeductionApprovals > 0 ||
-      data.highlight.pendingPurchaseOrders > 0,
-    [data.highlight]
-  );
 
   return (
     <section className="space-y-6">
@@ -245,7 +261,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-slate-300 bg-white/85 text-slate-700 shadow-sm">
-            อัปเดตล่าสุด {formatDate(data.generatedAt)}
+            อัปเดตล่าสุด {formatDate(source.generatedAt)}
           </Badge>
           <Button variant="outline" size="sm" disabled className="bg-white/80 shadow-sm">
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -254,28 +270,8 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
         </div>
       </div>
 
-      {showGlobalAlert && hasAttention && (
-        <Alert className="border-amber-200 bg-[linear-gradient(135deg,rgba(255,247,221,0.96),rgba(255,252,244,0.92))] text-amber-950 shadow-sm backdrop-blur">
-          <BellRing className="h-4 w-4" />
-          <AlertTitle>มีรายการที่ต้องติดตามในระบบ</AlertTitle>
-          <AlertDescription>
-            มีแจ้งเตือนค้าง {data.highlight.unreadAlerts} รายการ, คำขอรออนุมัติ{" "}
-            {data.highlight.pendingDeductionApprovals} รายการ และใบสั่งซื้อรอรับ{" "}
-            {data.highlight.pendingPurchaseOrders} รายการ
-          </AlertDescription>
-          <AlertAction className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setActiveTab("alerts")}>
-              ดูแจ้งเตือน
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowGlobalAlert(false)}>
-              ปิด
-            </Button>
-          </AlertAction>
-        </Alert>
-      )}
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {data.metrics.map((metric) => {
+        {source.metrics.map((metric) => {
           const Icon = metricIcons[metric.tone];
 
           return (
@@ -335,7 +331,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>แสดงข้อมูลวัตถุดิบล่าสุดจากฐานข้อมูล พร้อมสถานะสต๊อกและวันหมดอายุ</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.ingredients.length === 0 ? (
+              {source.ingredients.length === 0 ? (
                 <EmptyState message="ยังไม่มีข้อมูลวัตถุดิบในระบบ" />
               ) : (
                 <Table className="rounded-xl">
@@ -351,7 +347,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.ingredients.map((item) => (
+                    {source.ingredients.map((item) => (
                       <TableRow key={item.itemId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.itemId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
@@ -383,7 +379,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>รวมคำขอเบิก การอนุมัติ และผลการตัดสต๊อกจาก `StockDeduction`</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.stockDeductions.length === 0 ? (
+              {source.stockDeductions.length === 0 ? (
                 <EmptyState message="ยังไม่มีประวัติการตัดสต๊อก" />
               ) : (
                 <Table className="rounded-xl">
@@ -398,7 +394,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.stockDeductions.map((item, index) => (
+                    {source.stockDeductions.map((item, index) => (
                       <TableRow
                         key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`}
                         className={rowHoverClass}
@@ -429,7 +425,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>รายการแจ้งเตือนจาก `LowStockAlert` สำหรับติดตามสต๊อกต่ำ หมดสต๊อก และใกล้หมดอายุ</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.lowStockAlerts.length === 0 ? (
+              {source.lowStockAlerts.length === 0 ? (
                 <EmptyState message="ยังไม่มีรายการแจ้งเตือน" />
               ) : (
                 <Table className="rounded-xl">
@@ -440,22 +436,20 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                       <TableHead>ประเภท</TableHead>
                       <TableHead>จำนวน</TableHead>
                       <TableHead>เวลาแจ้งเตือน</TableHead>
-                      <TableHead>สถานะอ่าน</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.lowStockAlerts.map((item) => (
+                    {source.lowStockAlerts.map((item) => (
                       <TableRow key={item.alertId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.alertId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
-                        <TableCell>{alertTypeLabel(item.alertType)}</TableCell>
-                        <TableCell>{item.alertQty}</TableCell>
-                        <TableCell>{formatDate(item.alertTime)}</TableCell>
                         <TableCell>
-                          <Badge className={alertReadBadgeClass(item.isRead)}>
-                            {item.isRead === "Y" ? "อ่านแล้ว" : "ยังไม่อ่าน"}
+                          <Badge variant="outline" className={alertTypeBadgeClass(item.alertType)}>
+                            {alertTypeLabel(item.alertType)}
                           </Badge>
                         </TableCell>
+                        <TableCell>{item.alertQty}</TableCell>
+                        <TableCell>{formatDate(item.alertTime)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -472,7 +466,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>สรุปรายการ PO ล่าสุดจาก `PurchaseOrder` พร้อมผู้อนุมัติ สถานะ และยอดรวม</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.purchaseOrders.length === 0 ? (
+              {source.purchaseOrders.length === 0 ? (
                 <EmptyState message="ยังไม่มีข้อมูลใบสั่งซื้อ" />
               ) : (
                 <Table className="rounded-xl">
@@ -488,7 +482,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.purchaseOrders.map((item) => (
+                    {source.purchaseOrders.map((item) => (
                       <TableRow key={item.poId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>
@@ -517,7 +511,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>แสดงเฉพาะ PO ที่สถานะเป็น `arrived` หรือ `received` เพื่อใช้ติดตามการรับเข้า</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.receipts.length === 0 ? (
+              {source.receipts.length === 0 ? (
                 <EmptyState message="ยังไม่มีประวัติรับสินค้า" />
               ) : (
                 <Table className="rounded-xl">
@@ -533,7 +527,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.receipts.map((item) => (
+                    {source.receipts.map((item) => (
                       <TableRow key={item.poId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>

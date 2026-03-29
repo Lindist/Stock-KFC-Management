@@ -1,12 +1,11 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface ILowStockAlert extends Document {
   alert_id: string;
-  item_id: string;     // FK → Ingredient.item_id
+  item_id: string;
   alert_type: string;
   alert_qty: number;
   alert_time: Date;
-  is_read: string;     // CHAR(1): 'Y' | 'N'
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -29,7 +28,7 @@ const LowStockAlertSchema = new Schema<ILowStockAlert>(
       type: String,
       required: true,
       maxlength: 30,
-      enum: ["low_stock", "expiry", "out_of_stock"],
+      enum: ["low_stock", "out_of_stock"],
     },
     alert_qty: {
       type: Number,
@@ -41,12 +40,6 @@ const LowStockAlertSchema = new Schema<ILowStockAlert>(
       required: true,
       default: Date.now,
     },
-    is_read: {
-      type: String,
-      maxlength: 1,
-      enum: ["Y", "N"],
-      default: "N",
-    },
   },
   {
     timestamps: true,
@@ -54,9 +47,8 @@ const LowStockAlertSchema = new Schema<ILowStockAlert>(
   }
 );
 
-// Secondary indexes for alert queries and timeline sorting.
 LowStockAlertSchema.index({ item_id: 1 });
-LowStockAlertSchema.index({ is_read: 1 });
+LowStockAlertSchema.index({ alert_type: 1 });
 LowStockAlertSchema.index({ alert_time: -1 });
 
 const LowStockAlert: Model<ILowStockAlert> =

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       if (status === "approved") {
         const nextQty = Math.max(0, ingredient.current_qty - deductQty);
         ingredient.current_qty = nextQty;
-        ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0);
+        ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
         await ingredient.save();
       }
 

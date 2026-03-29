@@ -63,7 +63,7 @@ const IngredientSchema = new Schema<IIngredient>(
       type: String,
       required: true,
       maxlength: 20,
-      enum: ["in_stock", "low_stock", "out_of_stock"],
+      enum: ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"],
       default: "in_stock",
     },
   },

@@ -280,7 +280,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((item, index) => (
-                <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-red-50/60">
+                <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-red-100/90">
                   <TableCell className="font-medium">{item.poId}</TableCell>
                   <TableCell>
                     <div>

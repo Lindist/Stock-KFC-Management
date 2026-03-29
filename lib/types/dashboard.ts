@@ -1,4 +1,9 @@
-export type IngredientStockStatus = "in_stock" | "low_stock" | "out_of_stock";
+export type IngredientStockStatus =
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock"
+  | "expiring_soon"
+  | "expired";
 export type StockDeductionStatus = "pending" | "approved" | "rejected";
 export type PurchaseOrderStatus = "pending" | "received" | "arrived";
 export type LowStockAlertType = "low_stock" | "expiry" | "out_of_stock";
@@ -44,7 +49,6 @@ export interface LowStockAlertDashboardRow {
   alertType: LowStockAlertType;
   alertQty: number;
   alertTime: string;
-  isRead: "Y" | "N";
 }
 
 export interface PurchaseOrderDashboardRow {
@@ -61,14 +65,17 @@ export interface PurchaseOrderDashboardRow {
 }
 
 export interface DashboardHighlight {
-  unreadAlerts: number;
+  lowStockAlerts: number;
   pendingDeductionApprovals: number;
   pendingPurchaseOrders: number;
+  expiringIngredients: number;
+  expiredIngredients: number;
 }
 
 export interface GlobalDashboardData {
   metrics: DashboardMetric[];
   ingredients: IngredientDashboardRow[];
+  expiryAlerts: IngredientDashboardRow[];
   stockDeductions: StockDeductionDashboardRow[];
   lowStockAlerts: LowStockAlertDashboardRow[];
   purchaseOrders: PurchaseOrderDashboardRow[];

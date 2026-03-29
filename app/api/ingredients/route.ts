@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
             current_qty: currentQty,
             max_qty: maxQty,
             alert_threshold: alertThreshold,
-            stock_status: deriveIngredientStockStatus(currentQty, maxQty),
+            stock_status: deriveIngredientStockStatus(currentQty, maxQty, expiryDate),
         });
 
         return NextResponse.json(ingredient, { status: 201 });

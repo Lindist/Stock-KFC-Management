@@ -31,6 +31,8 @@ function formatCurrency(value: number) {
 }
 
 function translateStockStatus(status: string) {
+  if (status === "expired") return "หมดอายุ";
+  if (status === "expiring_soon") return "ใกล้หมดอายุ";
   if (status === "out_of_stock") return "หมดสต็อก";
   if (status === "low_stock") return "ใกล้หมด";
   if (status === "in_stock") return "ปกติ";
@@ -81,14 +83,16 @@ function toDeductionRows(items: ManagerStockDeductionRow[]): ReportRow[] {
 }
 
 function toPurchaseRows(items: ManagerPurchaseOrderRow[]): ReportRow[] {
-  return items.map((item, index) => ({
+  return items
+    .filter((item) => item.status === "received")
+    .map((item, index) => ({
     key: `${item.poId}-${index}`,
     primary: item.poId,
     secondary: item.itemName,
     metricA: `${item.orderQty} ${item.unit}`,
     metricB: item.supplierName,
     metricC: formatCurrency(item.priceTotal),
-  }));
+    }));
 }
 
 function getColumnLabels(reportType: ReportType) {
@@ -285,7 +289,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
                 </TableHeader>
                 <TableBody>
                   {reportRows.map((row) => (
-                    <TableRow key={row.key} className="transition-colors hover:bg-red-50/60">
+                    <TableRow key={row.key} className="transition-colors hover:bg-red-100/90">
                       <TableCell className="font-medium">{row.primary}</TableCell>
                       <TableCell>{row.secondary}</TableCell>
                       <TableCell>{row.metricA}</TableCell>

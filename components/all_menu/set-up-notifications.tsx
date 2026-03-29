@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDashboardDataCache } from "@/components/dashboard-data-cache";
 import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { ManagerIngredientRow, ManagerPhaseData } from "@/lib/types/manager";
 
@@ -25,6 +26,7 @@ function defaultThreshold(item: ManagerIngredientRow) {
 
 export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) {
   const { managerData, updateManagerData } = useManagerDataCache();
+  const { updateDashboardData } = useDashboardDataCache();
   const [thresholds, setThresholds] = useState<Record<string, number>>(
     () => Object.fromEntries((data?.ingredients ?? []).map((item) => [item.itemId, defaultThreshold(item)]))
   );
@@ -69,14 +71,84 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
         return;
       }
 
+      const payload = await response.json();
+      const processedItemIds = new Set<string>((payload.items ?? []).map((item: { itemId: string }) => item.itemId));
+      const nextDashboardAlerts = (payload.alerts ?? []).map((item: {
+        alertId: string;
+        itemId: string;
+        alertType: "low_stock" | "expiry" | "out_of_stock";
+        alertQty: number;
+        alertTime: string;
+      }) => {
+        const ingredient = ingredients.find((row) => row.itemId === item.itemId);
+        return {
+          alertId: item.alertId,
+          itemId: item.itemId,
+          itemName: ingredient?.itemName ?? item.itemId,
+          alertType: item.alertType,
+          alertQty: item.alertQty,
+          alertTime: item.alertTime,
+        };
+      });
+
       updateManagerData((current) => {
         if (!current) return current;
+        const nextAlerts = (payload.alerts ?? []).map((item: {
+          alertId: string;
+          itemId: string;
+          alertType: "low_stock" | "expiry" | "out_of_stock";
+          alertQty: number;
+          alertTime: string;
+        }) => {
+          const ingredient = current.ingredients.find((row) => row.itemId === item.itemId);
+          return {
+            alertId: item.alertId,
+            itemId: item.itemId,
+            itemName: ingredient?.itemName ?? item.itemId,
+            unit: ingredient?.unit ?? "-",
+            currentQty: ingredient?.currentQty ?? item.alertQty,
+            alertType: item.alertType,
+            alertQty: item.alertQty,
+            alertTime: item.alertTime,
+          };
+        });
+
         return {
           ...current,
           ingredients: current.ingredients.map((item) => ({
             ...item,
             alertThreshold: thresholds[item.itemId] ?? item.alertThreshold,
           })),
+          alerts: [
+            ...nextAlerts,
+            ...current.alerts.filter((item) => !processedItemIds.has(item.itemId)),
+          ],
+        };
+      });
+      updateDashboardData((current) => {
+        const allLowStockAlerts = [
+          ...nextDashboardAlerts,
+          ...current.lowStockAlerts.filter((item) => !processedItemIds.has(item.itemId)),
+        ].sort((left, right) => new Date(right.alertTime).getTime() - new Date(left.alertTime).getTime());
+        const mergedLowStockAlerts = allLowStockAlerts.slice(0, 6);
+
+        return {
+          ...current,
+          lowStockAlerts: mergedLowStockAlerts,
+          highlight: {
+            ...current.highlight,
+            lowStockAlerts: allLowStockAlerts.length,
+          },
+          metrics: current.metrics.map((metric) =>
+            metric.key === "alerts"
+              ? {
+                  ...metric,
+                  value: allLowStockAlerts.length,
+                  tone: allLowStockAlerts.length > 0 ? "danger" : "success",
+                }
+              : metric
+          ),
+          generatedAt: new Date().toISOString(),
         };
       });
       setIsSaved(true);
@@ -161,7 +233,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
                 const low = item.currentQty <= threshold;
 
                 return (
-                  <TableRow key={`${item.itemId}-${index}`} className="transition-colors hover:bg-red-50/60">
+                  <TableRow key={`${item.itemId}-${index}`} className="transition-colors hover:bg-red-100/90">
                     <TableCell className="font-medium">{item.itemId}</TableCell>
                     <TableCell>{item.itemName}</TableCell>
                     <TableCell>{item.currentQty}</TableCell>
