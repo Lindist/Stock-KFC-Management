@@ -65,7 +65,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
 
       const payload = await response.json();
       const nextOrder = payload as ManagerPurchaseOrderRow & {
-        ingredient?: { itemId: string; currentQty: number; stockStatus: string };
+        ingredient?: { itemId: string; currentQty: number; maxQty: number; stockStatus: string };
       };
       updateManagerData((current) => {
         if (!current) return current;
@@ -79,6 +79,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
               ? {
                   ...item,
                   currentQty: nextOrder.ingredient.currentQty,
+                  maxQty: nextOrder.ingredient.maxQty,
                   stockStatus: nextOrder.ingredient.stockStatus as typeof item.stockStatus,
                 }
               : item

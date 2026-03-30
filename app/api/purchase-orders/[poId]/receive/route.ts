@@ -36,9 +36,11 @@ export async function PATCH(
 
     const quantityDiff = receivedQty - (order.received_qty ?? 0);
     const nextQty = ingredient.current_qty + quantityDiff;
+    const nextMaxQty = Math.max(ingredient.max_qty ?? 0, nextQty);
 
     ingredient.current_qty = nextQty;
-    ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
+    ingredient.max_qty = nextMaxQty;
+    ingredient.stock_status = deriveIngredientStockStatus(nextQty, nextMaxQty, ingredient.expiry_date);
     await ingredient.save();
 
     order.received_qty = receivedQty;
@@ -62,6 +64,7 @@ export async function PATCH(
       ingredient: {
         itemId: ingredient.item_id,
         currentQty: ingredient.current_qty,
+        maxQty: ingredient.max_qty,
         stockStatus: ingredient.stock_status,
       },
     });
