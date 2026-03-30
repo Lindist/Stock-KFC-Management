@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     const supplierName = String(body.supplierName ?? "").trim();
     const approverId = String(body.approverId ?? "").trim();
     const orderQty = Number(body.orderQty ?? 0);
-    const deliveryDate = new Date();
 
     if (!poId || !itemId || !supplierName || !approverId || Number.isNaN(orderQty) || orderQty <= 0) {
       return NextResponse.json({ error: "Invalid purchase order payload" }, { status: 400 });
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
       supplier_name: supplierName,
       order_qty: orderQty,
       price_total: ingredient.cost * orderQty,
-      delivery_date: deliveryDate,
+      delivery_date: null,
       received_qty: 0,
       po_status: "pending",
     });
@@ -73,7 +72,8 @@ export async function POST(request: NextRequest) {
       orderQty: order.order_qty,
       receivedQty: order.received_qty,
       priceTotal: order.price_total,
-      deliveryDate: order.delivery_date.toISOString(),
+      createdAt: order.createdAt?.toISOString() ?? new Date().toISOString(),
+      deliveryDate: order.delivery_date ? order.delivery_date.toISOString() : "",
       status: order.po_status,
     }, { status: 201 });
   } catch (error) {

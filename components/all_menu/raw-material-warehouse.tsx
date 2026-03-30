@@ -131,6 +131,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
     item_name: string;
     unit: string;
     cost: number;
+    createdAt?: string;
     expiry_date: string;
     current_qty: number;
     max_qty: number;
@@ -141,6 +142,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
     itemName: payload.item_name,
     unit: payload.unit,
     cost: payload.cost,
+    createdAt: payload.createdAt ?? new Date().toISOString(),
     expiryDate: payload.expiry_date,
     currentQty: payload.current_qty,
     maxQty: payload.max_qty,

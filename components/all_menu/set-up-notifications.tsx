@@ -76,7 +76,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
       const nextDashboardAlerts = (payload.alerts ?? []).map((item: {
         alertId: string;
         itemId: string;
-        alertType: "low_stock" | "expiry" | "out_of_stock";
+        alertType: "low_stock" | "out_of_stock";
         alertQty: number;
         alertTime: string;
       }) => {
@@ -96,7 +96,7 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
         const nextAlerts = (payload.alerts ?? []).map((item: {
           alertId: string;
           itemId: string;
-          alertType: "low_stock" | "expiry" | "out_of_stock";
+          alertType: "low_stock" | "out_of_stock";
           alertQty: number;
           alertTime: string;
         }) => {

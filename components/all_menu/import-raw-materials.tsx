@@ -12,6 +12,10 @@ import { useManagerDataCache } from "@/components/manager-data-cache";
 import type { ManagerPhaseData, ManagerPurchaseOrderRow } from "@/lib/types/manager";
 
 function formatDate(value: string) {
+  if (!value) {
+    return "ยังไม่กำหนด";
+  }
+
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(new Date(value));
 }
 

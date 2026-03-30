@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarRange, FileBarChart2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,12 +15,67 @@ type ReportPeriod = "year" | "month" | "week" | "day" | "custom";
 
 type ReportRow = {
   key: string;
+  createdAt: string;
   primary: string;
   secondary: string;
   metricA: string;
   metricB: string;
   metricC: string;
 };
+
+function toDateInputValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value: string, endOfDay = false) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999);
+  }
+
+  return date;
+}
+
+function getPeriodRange(period: ReportPeriod, anchor: Date) {
+  const start = new Date(anchor);
+  const end = new Date(anchor);
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  if (period === "day") {
+    return { start, end };
+  }
+
+  if (period === "week") {
+    start.setDate(start.getDate() - 6);
+    return { start, end };
+  }
+
+  if (period === "month") {
+    start.setDate(start.getDate() - 29);
+    return { start, end };
+  }
+
+  if (period === "year") {
+    start.setMonth(0, 1);
+    end.setMonth(11, 30);
+    return { start, end };
+  }
+
+  return { start, end };
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(new Date(value));
@@ -63,6 +118,7 @@ function translatePeriod(period: ReportPeriod) {
 function toStockRows(items: ManagerIngredientRow[]): ReportRow[] {
   return items.map((item) => ({
     key: item.itemId,
+    createdAt: item.createdAt,
     primary: item.itemId,
     secondary: item.itemName,
     metricA: `${item.currentQty} ${item.unit}`,
@@ -74,6 +130,7 @@ function toStockRows(items: ManagerIngredientRow[]): ReportRow[] {
 function toDeductionRows(items: ManagerStockDeductionRow[]): ReportRow[] {
   return items.map((item, index) => ({
     key: `${item.transactionId}-${index}`,
+    createdAt: item.createdAt,
     primary: item.transactionId,
     secondary: item.itemName,
     metricA: `${item.deductQty}`,
@@ -87,6 +144,7 @@ function toPurchaseRows(items: ManagerPurchaseOrderRow[]): ReportRow[] {
     .filter((item) => item.status === "received")
     .map((item, index) => ({
     key: `${item.poId}-${index}`,
+    createdAt: item.createdAt,
     primary: item.poId,
     secondary: item.itemName,
     metricA: `${item.orderQty} ${item.unit}`,
@@ -109,17 +167,49 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
   const { managerData } = useManagerDataCache();
   const [reportType, setReportType] = useState<ReportType>("stock_summary");
   const [period, setPeriod] = useState<ReportPeriod>("month");
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().slice(0, 10));
-  const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0, 10));
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const source = managerData ?? data;
 
-  const reportRows = useMemo(() => {
-    const source = managerData ?? data;
+  const baseRows = useMemo(() => {
     if (!source) return [];
     if (reportType === "stock_deduction") return toDeductionRows(source.stockDeductions);
     if (reportType === "purchase_order") return toPurchaseRows(source.purchaseOrders);
     return toStockRows(source.ingredients);
-  }, [data, managerData, reportType]);
+  }, [reportType, source]);
+
+  useEffect(() => {
+    if (period === "custom" || baseRows.length === 0) {
+      return;
+    }
+
+    const { start, end } = getPeriodRange(period, new Date());
+    setDateFrom(toDateInputValue(start));
+    setDateTo(toDateInputValue(end));
+  }, [baseRows, period]);
+
+  const reportRows = useMemo(() => {
+    const startDate = parseDateInput(dateFrom);
+    const endDate = parseDateInput(dateTo, true);
+
+    return baseRows.filter((row) => {
+      const createdAt = new Date(row.createdAt);
+      if (Number.isNaN(createdAt.getTime())) {
+        return false;
+      }
+
+      if (startDate && createdAt < startDate) {
+        return false;
+      }
+
+      if (endDate && createdAt > endDate) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [baseRows, dateFrom, dateTo]);
 
   const columnLabels = getColumnLabels(reportType);
 
@@ -224,11 +314,21 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">วันที่เริ่มต้น</p>
-              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                disabled={period !== "custom"}
+              />
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</p>
-              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                disabled={period !== "custom"}
+              />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row xl:flex-nowrap xl:items-end">
               <Button onClick={generateReport} className="bg-sky-700 text-white hover:bg-sky-800">

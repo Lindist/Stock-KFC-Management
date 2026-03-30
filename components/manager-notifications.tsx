@@ -18,7 +18,7 @@ import {
 
 function formatDate(value: string) {
   if (!value) {
-    return "";
+    return "ยังไม่กำหนด";
   }
 
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short" }).format(
@@ -29,7 +29,6 @@ function formatDate(value: string) {
 function formatAlertType(value: string) {
   if (value === "low_stock") return "วัตถุดิบใกล้หมด";
   if (value === "out_of_stock") return "วัตถุดิบหมดสต็อก";
-  if (value === "expiry") return "วัตถุดิบใกล้หมดอายุ";
   return value;
 }
 
@@ -42,7 +41,7 @@ export function NotificationsBanner({
   onOpenDashboardTab,
 }: {
   data: GlobalDashboardData;
-  onOpenDashboardTab: (tab: string) => void;
+  onOpenDashboardTab: (tab: string, menuId?: string) => void;
 }) {
   const { dashboardData } = useDashboardDataCache();
   const source = dashboardData ?? data;
@@ -129,7 +128,7 @@ export function NotificationsBanner({
             <Button
               size="sm"
               className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() => onOpenDashboardTab("deductions")}
+              onClick={() => onOpenDashboardTab("deductions", "withdraw")}
             >
               ดูรายละเอียด
             </Button>
@@ -157,7 +156,7 @@ export function NotificationsBanner({
             <Button
               size="sm"
               className="bg-sky-600 text-white hover:bg-sky-700"
-              onClick={() => onOpenDashboardTab("orders")}
+              onClick={() => onOpenDashboardTab("orders", "purchase-orders")}
             >
               ดูรายการ
             </Button>
@@ -185,7 +184,7 @@ export function NotificationsBanner({
             <Button
               size="sm"
               className="bg-amber-600 text-white hover:bg-amber-700"
-              onClick={() => onOpenDashboardTab("alerts")}
+              onClick={() => onOpenDashboardTab("alerts", "notifications")}
             >
               ดูรายการ
             </Button>
@@ -213,7 +212,7 @@ export function NotificationsBanner({
             <Button
               size="sm"
               className="bg-violet-600 text-white hover:bg-violet-700"
-              onClick={() => onOpenDashboardTab("ingredients")}
+              onClick={() => onOpenDashboardTab("ingredients", "warehouse")}
             >
               ดูรายการ
             </Button>
@@ -238,7 +237,7 @@ export function ManagerNotifications({
   onOpenDashboardTab,
 }: {
   data: GlobalDashboardData;
-  onOpenDashboardTab: (tab: string) => void;
+  onOpenDashboardTab: (tab: string, menuId?: string) => void;
 }) {
   const { dashboardData } = useDashboardDataCache();
   const source = dashboardData ?? data;
@@ -252,10 +251,10 @@ export function ManagerNotifications({
     );
   }, [source.highlight]);
 
-  const latestAlerts = source.lowStockAlerts.slice(0, 4);
-  const latestExpiryAlerts = source.expiryAlerts.slice(0, 4);
-  const latestApprovals = source.stockDeductions.filter((item) => item.status === "pending").slice(0, 4);
-  const latestOrders = source.purchaseOrders.slice(0, 4);
+  const latestAlerts = source.lowStockAlerts;
+  const latestExpiryAlerts = source.expiryAlerts;
+  const latestApprovals = source.stockDeductions.filter((item) => item.status === "pending");
+  const latestOrders = source.purchaseOrders.filter((item) => item.status === "pending");
 
   return (
     <DropdownMenu>
@@ -268,7 +267,11 @@ export function ManagerNotifications({
         ) : null}
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-[360px] rounded-xl shadow-lg">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="max-h-[75vh] w-[380px] overflow-y-auto rounded-xl shadow-lg"
+      >
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span>แจ้งเตือน</span>
           <Badge variant="outline">อัปเดต {formatDate(source.generatedAt)}</Badge>
@@ -285,7 +288,7 @@ export function ManagerNotifications({
           latestAlerts.map((item, index) => (
             <DropdownMenuItem
               key={`${item.alertId}-${item.alertTime}-${index}`}
-              onSelect={() => onOpenDashboardTab("alerts")}
+              onSelect={() => onOpenDashboardTab("alerts", "notifications")}
               className="flex flex-col items-start gap-0.5"
             >
               <div className="text-sm font-medium">{item.itemName}</div>
@@ -307,7 +310,7 @@ export function ManagerNotifications({
           latestExpiryAlerts.map((item, index) => (
             <DropdownMenuItem
               key={`${item.itemId}-${item.expiryDate}-${index}`}
-              onSelect={() => onOpenDashboardTab("ingredients")}
+              onSelect={() => onOpenDashboardTab("ingredients", "warehouse")}
               className="flex flex-col items-start gap-0.5"
             >
               <div className="text-sm font-medium">{item.itemName}</div>
@@ -329,7 +332,7 @@ export function ManagerNotifications({
           latestApprovals.map((item, index) => (
             <DropdownMenuItem
               key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`}
-              onSelect={() => onOpenDashboardTab("deductions")}
+              onSelect={() => onOpenDashboardTab("deductions", "withdraw")}
               className="flex flex-col items-start gap-0.5"
             >
               <div className="text-sm font-medium">
@@ -353,7 +356,7 @@ export function ManagerNotifications({
           latestOrders.map((item, index) => (
             <DropdownMenuItem
               key={`${item.poId}-${item.itemId}-${item.deliveryDate}-${index}`}
-              onSelect={() => onOpenDashboardTab("orders")}
+              onSelect={() => onOpenDashboardTab("orders", "purchase-orders")}
               className="flex flex-col items-start gap-0.5"
             >
               <div className="text-sm font-medium">

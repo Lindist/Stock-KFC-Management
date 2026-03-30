@@ -13,6 +13,6 @@ export function deriveLowStockAlertType(currentQty: number, alertThreshold: numb
 }
 
 export function buildLowStockAlertId(itemId: string, alertType: LowStockAlertType) {
-  const prefix = alertType === "out_of_stock" ? "OUT" : alertType === "expiry" ? "EXP" : "LOW";
+  const prefix = alertType === "out_of_stock" ? "OUT" : "LOW";
   return `ALT-${prefix}-${itemId}`.slice(0, 15);
 }

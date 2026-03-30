@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookOpen, ChevronDown, LayoutDashboard, LogOut, UserPen, UserPlus, Users } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, ShoppingCart, UserPen } from "lucide-react";
 import { useState } from "react";
 import { signOut } from "@/lib/auth/auth-client";
 import { ProfileEditDialog } from "@/components/profile-edit-dialog";
@@ -28,9 +28,7 @@ import {
 
 export const supplierMenu = [
   { id: "dashboard", name: "แดชบอร์ด", icon: LayoutDashboard, badge: 0 },
-  { id: "supplier-list", name: "รายชื่อซัพพลายเออร์", icon: Users, badge: 0 },
-  { id: "supplier-add", name: "เพิ่มซัพพลายเออร์", icon: UserPlus, badge: 0 },
-  { id: "supplier-categories", name: "หมวดหมู่วัตถุดิบ", icon: BookOpen, badge: 0 },
+  { id: "store-dashboard", name: "จัดการใบสั่งซื้อ", icon: ShoppingCart, badge: 0 },
 ] as const;
 
 export type SupplierMenuItemId = (typeof supplierMenu)[number]["id"];
@@ -41,6 +39,12 @@ type SidebarUser = {
   name?: string | null;
   role?: string | null;
 };
+
+function getRoleLabel(role?: string | null) {
+  if (role === "admin") return "ผู้ดูแลระบบ";
+  if (role === "store") return "Store";
+  return role || "Store";
+}
 
 export function SidebarSupplier({
   user,
@@ -63,10 +67,10 @@ export function SidebarSupplier({
         .join("")
         .substring(0, 2)
         .toUpperCase()
-    : "จก";
+    : "ST";
 
-  const displayName = cachedUser?.name || "สมชาย ใจดี";
-  const displayRole = cachedUser?.role === "admin" ? "ผู้ดูแลระบบ" : cachedUser?.role || "ผู้ดูแลระบบ";
+  const displayName = cachedUser?.name || "ผู้ใช้งาน Store";
+  const displayRole = getRoleLabel(cachedUser?.role);
   const avatarUrl = cachedUser?.image || "";
 
   const handleLogout = async () => {
@@ -92,7 +96,7 @@ export function SidebarSupplier({
               <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                 <h1 className="truncate text-sm font-bold leading-tight tracking-wide">KFC StockFlow</h1>
                 <p className="truncate text-[10px] font-medium text-sidebar-foreground/70">
-                  จัดการซัพพลายเออร์
+                  ฝั่ง Store จัดการใบสั่งซื้อ
                 </p>
               </div>
             </div>
@@ -101,7 +105,7 @@ export function SidebarSupplier({
           <SidebarContent className="scrollbar-hide py-2">
             <SidebarGroup>
               <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-                เมนูซัพพลายเออร์
+                เมนู Store
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <UIMenu>
@@ -116,11 +120,11 @@ export function SidebarSupplier({
                         <item.icon className="h-[18px] w-[18px]" />
                         <span>{item.name}</span>
                       </SidebarMenuButton>
-                      {item.badge > 0 && (
+                      {item.badge > 0 ? (
                         <SidebarMenuBadge className="bg-sidebar-primary text-[10px] tabular-nums text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
                           {item.badge}
                         </SidebarMenuBadge>
-                      )}
+                      ) : null}
                     </SidebarMenuItem>
                   ))}
                 </UIMenu>

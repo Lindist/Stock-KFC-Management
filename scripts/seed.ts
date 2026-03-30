@@ -173,13 +173,6 @@ const mockLowStockAlerts = [
     alert_qty: 0,
     alert_time: new Date(now.getTime() - 1000 * 60 * 60 * 6),
   },
-  {
-    alert_id: "ALT003",
-    item_id: "ING008",
-    alert_type: "expiry",
-    alert_qty: 600,
-    alert_time: new Date(now.getTime() - 1000 * 60 * 60 * 24),
-  },
 ];
 
 const mockPurchaseOrders = [

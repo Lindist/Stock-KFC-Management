@@ -35,8 +35,8 @@ export function HomeShell({
     return <StaffShell user={user} dashboardData={dashboardData} />;
   }
 
-  if (user.role === "admin") {
-    return <SupplierShell user={user} dashboardData={dashboardData} />;
+  if (user.role === "admin" || user.role === "store") {
+    return <SupplierShell user={user} dashboardData={dashboardData} managerData={managerData} />;
   }
 
   return <ManagerShell user={user} dashboardData={dashboardData} managerData={managerData} />;

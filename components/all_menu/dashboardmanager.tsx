@@ -158,20 +158,12 @@ function alertTypeLabel(type: LowStockAlertType) {
     return "หมดสต๊อก";
   }
 
-  if (type === "expiry") {
-    return "ใกล้หมดอายุ";
-  }
-
   return "สต๊อกต่ำ";
 }
 
 function alertTypeBadgeClass(type: LowStockAlertType) {
   if (type === "out_of_stock") {
     return "border-red-200 bg-red-50 text-red-700";
-  }
-
-  if (type === "expiry") {
-    return "border-orange-200 bg-orange-50 text-orange-700";
   }
 
   return "border-amber-200 bg-amber-50 text-amber-700";
@@ -249,6 +241,41 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
   const { dashboardData } = useDashboardDataCache();
   const source = dashboardData ?? data;
   const [activeTab, setActiveTab] = useState(initialTab ?? "ingredients");
+  const groupedStockDeductions = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        transactionId: string;
+        itemSummary: string;
+        totalQty: number;
+        requestedBy: string;
+        deductTime: string;
+        status: StockDeductionStatus;
+      }
+    >();
+
+    for (const item of source.stockDeductions) {
+      const current = grouped.get(item.transactionId);
+      if (current) {
+        current.itemSummary = `${current.itemSummary}, ${item.itemName} x ${item.deductQty}`;
+        current.totalQty += item.deductQty;
+        continue;
+      }
+
+      grouped.set(item.transactionId, {
+        transactionId: item.transactionId,
+        itemSummary: `${item.itemName} x ${item.deductQty}`,
+        totalQty: item.deductQty,
+        requestedBy: item.requestedBy,
+        deductTime: item.deductTime,
+        status: item.status,
+      });
+    }
+
+    return Array.from(grouped.values()).sort(
+      (left, right) => new Date(right.deductTime).getTime() - new Date(left.deductTime).getTime()
+    );
+  }, [source.stockDeductions]);
 
   return (
     <section className="space-y-6">
@@ -379,7 +406,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
               <CardDescription>รวมคำขอเบิก การอนุมัติ และผลการตัดสต๊อกจาก `StockDeduction`</CardDescription>
             </CardHeader>
             <CardContent>
-              {source.stockDeductions.length === 0 ? (
+              {groupedStockDeductions.length === 0 ? (
                 <EmptyState message="ยังไม่มีประวัติการตัดสต๊อก" />
               ) : (
                 <Table className="rounded-xl">
@@ -394,14 +421,14 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {source.stockDeductions.map((item, index) => (
+                    {groupedStockDeductions.map((item) => (
                       <TableRow
-                        key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`}
+                        key={`${item.transactionId}-${item.deductTime}`}
                         className={rowHoverClass}
                       >
                         <TableCell className="font-medium">{item.transactionId}</TableCell>
-                        <TableCell>{item.itemName}</TableCell>
-                        <TableCell>{item.deductQty}</TableCell>
+                        <TableCell>{item.itemSummary}</TableCell>
+                        <TableCell>{item.totalQty}</TableCell>
                         <TableCell>{item.requestedBy}</TableCell>
                         <TableCell>{formatDate(item.deductTime)}</TableCell>
                         <TableCell>

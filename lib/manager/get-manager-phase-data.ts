@@ -14,7 +14,7 @@ import type {
 import type { ManagerPhaseData } from "@/lib/types/manager";
 
 const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"] as const;
-const ALERT_TYPES = ["low_stock", "expiry", "out_of_stock"] as const;
+const ALERT_TYPES = ["low_stock", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
 
 function deriveIngredientStockStatus(
@@ -159,6 +159,7 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       itemName: item.item_name,
       unit: item.unit,
       cost: item.cost,
+      createdAt: toIsoString(item.createdAt),
       expiryDate: toIsoString(item.expiry_date),
       currentQty: item.current_qty,
       maxQty: item.max_qty ?? 0,
@@ -172,6 +173,7 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       userId: item.user_id,
       requestedBy: userMap.get(item.user_id) ?? item.user_id,
       deductQty: item.deduct_qty,
+      createdAt: toIsoString(item.createdAt),
       deductTime: toIsoString(item.deduct_time),
       status: item.status,
       note: item.note,
@@ -197,6 +199,7 @@ export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
       orderQty: item.order_qty,
       receivedQty: item.received_qty,
       priceTotal: item.price_total,
+      createdAt: toIsoString(item.createdAt),
       deliveryDate: toIsoString(item.delivery_date),
       status: coercePurchaseOrderStatus(item.po_status),
     })),

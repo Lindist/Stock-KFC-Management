@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
         userId: record.user_id,
         requestedBy: session.user.name ?? session.user.email ?? session.user.id,
         deductQty: record.deduct_qty,
+        createdAt: record.createdAt?.toISOString() ?? timestamp.toISOString(),
         deductTime: record.deduct_time.toISOString(),
         status: record.status,
         note: record.note,

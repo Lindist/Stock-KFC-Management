@@ -3,7 +3,9 @@ import connectDB from "@/lib/db";
 import Ingredient from "@/lib/models/Ingredient";
 import PurchaseOrder from "@/lib/models/PurchaseOrder";
 import { getSession } from "@/lib/auth/auth";
-import { deriveIngredientStockStatus } from "@/lib/inventory-utils";
+import type { PurchaseOrderStatus } from "@/lib/types/dashboard";
+
+const validStatuses: PurchaseOrderStatus[] = ["pending", "arrived"];
 
 export async function PATCH(
   request: NextRequest,
@@ -17,10 +19,10 @@ export async function PATCH(
 
     const { poId } = await context.params;
     const body = await request.json();
-    const receivedQty = Number(body.receivedQty ?? 0);
+    const nextStatus = String(body.status ?? "").trim() as PurchaseOrderStatus;
 
-    if (Number.isNaN(receivedQty) || receivedQty < 0) {
-      return NextResponse.json({ error: "Invalid received quantity" }, { status: 400 });
+    if (!validStatuses.includes(nextStatus)) {
+      return NextResponse.json({ error: "Invalid purchase order status" }, { status: 400 });
     }
 
     await connectDB();
@@ -34,15 +36,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
     }
 
-    const quantityDiff = receivedQty - (order.received_qty ?? 0);
-    const nextQty = ingredient.current_qty + quantityDiff;
-
-    ingredient.current_qty = nextQty;
-    ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
-    await ingredient.save();
-
-    order.received_qty = receivedQty;
-    order.po_status = "received";
+    order.po_status = nextStatus;
+    order.delivery_date = nextStatus === "arrived" ? new Date() : null;
     await order.save();
 
     return NextResponse.json({
@@ -59,14 +54,9 @@ export async function PATCH(
       createdAt: order.createdAt?.toISOString() ?? new Date().toISOString(),
       deliveryDate: order.delivery_date ? order.delivery_date.toISOString() : "",
       status: order.po_status,
-      ingredient: {
-        itemId: ingredient.item_id,
-        currentQty: ingredient.current_qty,
-        stockStatus: ingredient.stock_status,
-      },
     });
   } catch (error) {
-    console.error("Error receiving purchase order:", error);
+    console.error("Error updating purchase order status:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

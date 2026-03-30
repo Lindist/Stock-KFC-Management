@@ -39,6 +39,7 @@ type GroupedRequest = {
   note: string;
   items: string[];
   totalQty: number;
+  status: StockDeductionStatus;
 };
 
 export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData | null }) {
@@ -85,6 +86,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
           note: item.note ?? "",
           items: [`${item.itemName} x ${item.deductQty}`],
           totalQty: item.deductQty,
+          status: item.status,
         });
       });
 
@@ -96,16 +98,38 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
     );
   }, [deductions, pendingQuery]);
 
-  const filteredHistory = useMemo(
-    () =>
-      deductions.filter(
-        (item) =>
-          item.transactionId.toLowerCase().includes(historyQuery.toLowerCase()) ||
-          item.itemName.toLowerCase().includes(historyQuery.toLowerCase()) ||
-          item.requestedBy.toLowerCase().includes(historyQuery.toLowerCase())
-      ),
-    [deductions, historyQuery]
-  );
+  const filteredHistory = useMemo(() => {
+    const grouped = new Map<string, GroupedRequest>();
+
+    deductions.forEach((item) => {
+      const current = grouped.get(item.transactionId);
+      if (current) {
+        current.items.push(`${item.itemName} x ${item.deductQty}`);
+        current.totalQty += item.deductQty;
+        if (item.note) {
+          current.note = current.note ? `${current.note}, ${item.note}` : item.note;
+        }
+        return;
+      }
+
+      grouped.set(item.transactionId, {
+        transactionId: item.transactionId,
+        requestedBy: item.requestedBy,
+        deductTime: item.deductTime,
+        note: item.note ?? "",
+        items: [`${item.itemName} x ${item.deductQty}`],
+        totalQty: item.deductQty,
+        status: item.status,
+      });
+    });
+
+    return Array.from(grouped.values()).filter(
+      (item) =>
+        item.transactionId.toLowerCase().includes(historyQuery.toLowerCase()) ||
+        item.requestedBy.toLowerCase().includes(historyQuery.toLowerCase()) ||
+        item.items.join(" ").toLowerCase().includes(historyQuery.toLowerCase())
+    );
+  }, [deductions, historyQuery]);
 
   const selectedItems = useMemo(
     () => ingredients.filter((item) => (quantityById[item.itemId] ?? 0) > 0),
@@ -417,11 +441,11 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                     </TableHeader>
                     <TableBody>
                       {filteredHistory.map((item, index) => (
-                        <TableRow key={`${item.transactionId}-${item.itemId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-100/90">
+                        <TableRow key={`${item.transactionId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-100/90">
                           <TableCell className="font-medium">{item.transactionId}</TableCell>
-                          <TableCell>{item.itemName}</TableCell>
+                          <TableCell>{item.items.join(", ")}</TableCell>
                           <TableCell>{item.requestedBy}</TableCell>
-                          <TableCell>{item.deductQty}</TableCell>
+                          <TableCell>{item.totalQty}</TableCell>
                           <TableCell>
                             <Badge className={badgeClass(item.status)}>{statusLabel(item.status)}</Badge>
                           </TableCell>

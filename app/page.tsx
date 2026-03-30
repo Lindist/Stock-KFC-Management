@@ -13,7 +13,10 @@ export default async function Home() {
 
   const user = session.user;
   const dashboardData = await getGlobalDashboardData();
-  const managerData = user.role === "manager" ? await getManagerPhaseData() : null;
+  const managerData =
+    user.role === "manager" || user.role === "store" || user.role === "admin"
+      ? await getManagerPhaseData()
+      : null;
 
   return <HomeShell user={user} dashboardData={dashboardData} managerData={managerData} />;
 }

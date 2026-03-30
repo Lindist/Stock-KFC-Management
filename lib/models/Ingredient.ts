@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export type IngredientStockStatusValue =
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock"
+  | "expiring_soon"
+  | "expired";
+
 export interface IIngredient extends Document {
   item_id: string;
   item_name: string;
@@ -9,7 +16,7 @@ export interface IIngredient extends Document {
   current_qty: number;
   max_qty: number;
   alert_threshold: number;
-  stock_status: string;
+  stock_status: IngredientStockStatusValue;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -76,8 +83,20 @@ const IngredientSchema = new Schema<IIngredient>(
 // Secondary index for filtering inventory by status.
 IngredientSchema.index({ stock_status: 1 });
 
+const existingIngredientModel = mongoose.models.Ingredient as Model<IIngredient> | undefined;
+const existingStatusPath = existingIngredientModel?.schema.path("stock_status") as
+  | { options?: { enum?: string[] } }
+  | undefined;
+const existingStatusEnum = existingStatusPath?.options?.enum ?? [];
+const supportsExpiryStatuses =
+  existingStatusEnum.includes("expiring_soon") && existingStatusEnum.includes("expired");
+
+if (existingIngredientModel && !supportsExpiryStatuses) {
+  mongoose.deleteModel("Ingredient");
+}
+
 const Ingredient: Model<IIngredient> =
-  mongoose.models.Ingredient ||
+  (mongoose.models.Ingredient as Model<IIngredient>) ||
   mongoose.model<IIngredient>("Ingredient", IngredientSchema);
 
 export default Ingredient;

@@ -3,7 +3,7 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 export interface ILowStockAlert extends Document {
   alert_id: string;
   item_id: string;
-  alert_type: string;
+  alert_type: "low_stock" | "out_of_stock";
   alert_qty: number;
   alert_time: Date;
   createdAt?: Date;

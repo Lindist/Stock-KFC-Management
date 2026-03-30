@@ -21,7 +21,7 @@ import type {
 const TABLE_LIMIT = 6;
 
 const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"] as const;
-const ALERT_TYPES = ["low_stock", "expiry", "out_of_stock"] as const;
+const ALERT_TYPES = ["low_stock", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
 
 function deriveIngredientStockStatus(

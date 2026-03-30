@@ -6,7 +6,7 @@ export type IngredientStockStatus =
   | "expired";
 export type StockDeductionStatus = "pending" | "approved" | "rejected";
 export type PurchaseOrderStatus = "pending" | "received" | "arrived";
-export type LowStockAlertType = "low_stock" | "expiry" | "out_of_stock";
+export type LowStockAlertType = "low_stock" | "out_of_stock";
 export type ReportType =
   | "stock_summary"
   | "purchase_order"

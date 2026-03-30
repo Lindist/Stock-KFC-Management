@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { ManagerPhaseData } from "@/lib/types/manager";
 
 type ManagerDataCacheContextValue = {
@@ -8,7 +8,7 @@ type ManagerDataCacheContextValue = {
   updateManagerData: (
     updater: (current: ManagerPhaseData | null) => ManagerPhaseData | null
   ) => void;
-  setManagerData: (next: ManagerPhaseData | null) => void;
+  setManagerData: Dispatch<SetStateAction<ManagerPhaseData | null>>;
 };
 
 const ManagerDataCacheContext = createContext<ManagerDataCacheContextValue | null>(null);
@@ -21,16 +21,20 @@ export function ManagerDataCacheProvider({
   children: ReactNode;
 }) {
   const [managerData, setManagerData] = useState<ManagerPhaseData | null>(initialData);
+  const updateManagerData = useCallback(
+    (updater: (current: ManagerPhaseData | null) => ManagerPhaseData | null) => {
+      setManagerData((current) => updater(current));
+    },
+    []
+  );
 
   const value = useMemo<ManagerDataCacheContextValue>(
     () => ({
       managerData,
       setManagerData,
-      updateManagerData: (updater) => {
-        setManagerData((current) => updater(current));
-      },
+      updateManagerData,
     }),
-    [managerData]
+    [managerData, updateManagerData]
   );
 
   return (

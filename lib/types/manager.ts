@@ -10,6 +10,7 @@ export interface ManagerIngredientRow {
   itemName: string;
   unit: string;
   cost: number;
+  createdAt: string;
   expiryDate: string;
   currentQty: number;
   maxQty: number;
@@ -24,6 +25,7 @@ export interface ManagerStockDeductionRow {
   userId: string;
   requestedBy: string;
   deductQty: number;
+  createdAt: string;
   deductTime: string;
   status: StockDeductionStatus;
   note?: string;
@@ -51,6 +53,7 @@ export interface ManagerPurchaseOrderRow {
   orderQty: number;
   receivedQty: number;
   priceTotal: number;
+  createdAt: string;
   deliveryDate: string;
   status: PurchaseOrderStatus;
 }

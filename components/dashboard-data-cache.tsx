@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
 
 type DashboardDataCacheContextValue = {
   dashboardData: GlobalDashboardData;
-  setDashboardData: (next: GlobalDashboardData) => void;
+  setDashboardData: Dispatch<SetStateAction<GlobalDashboardData>>;
   updateDashboardData: (updater: (current: GlobalDashboardData) => GlobalDashboardData) => void;
 };
 
@@ -19,16 +19,17 @@ export function DashboardDataCacheProvider({
   children: ReactNode;
 }) {
   const [dashboardData, setDashboardData] = useState(initialData);
+  const updateDashboardData = useCallback((updater: (current: GlobalDashboardData) => GlobalDashboardData) => {
+    setDashboardData((current) => updater(current));
+  }, []);
 
   const value = useMemo<DashboardDataCacheContextValue>(
     () => ({
       dashboardData,
       setDashboardData,
-      updateDashboardData: (updater) => {
-        setDashboardData((current) => updater(current));
-      },
+      updateDashboardData,
     }),
-    [dashboardData]
+    [dashboardData, updateDashboardData]
   );
 
   return (

@@ -53,7 +53,7 @@ export async function PATCH(
         supplier_name: supplierName,
         order_qty: orderQty,
         price_total: ingredient.cost * orderQty,
-        delivery_date: existingOrder.delivery_date,
+        delivery_date: existingOrder.delivery_date ?? null,
         received_qty: existingOrder.received_qty,
         po_status: existingOrder.po_status,
       },
@@ -75,7 +75,8 @@ export async function PATCH(
       orderQty: order.order_qty,
       receivedQty: order.received_qty,
       priceTotal: order.price_total,
-      deliveryDate: order.delivery_date.toISOString(),
+      createdAt: order.createdAt?.toISOString() ?? new Date().toISOString(),
+      deliveryDate: order.delivery_date ? order.delivery_date.toISOString() : "",
       status: order.po_status,
     });
   } catch (error) {
