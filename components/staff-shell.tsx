@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { CreateMaterialRequest } from "@/components/all_menu/create-a-material-requisition-request";
+import { DashboardCacheAutoRefresh } from "@/components/cache-auto-refresh";
 import { DashboardManager } from "@/components/all_menu/dashboardmanager";
 import { DashboardDataCacheProvider } from "@/components/dashboard-data-cache";
 import { ManagerNotifications, NotificationsBanner } from "@/components/manager-notifications";
@@ -43,6 +44,7 @@ export function StaffShell({
     <SidebarProvider>
       <SidebarRequest user={user} activeItem={activeItem} onSelect={setActiveItem} />
       <DashboardDataCacheProvider initialData={dashboardData}>
+        <DashboardCacheAutoRefresh />
         <SidebarInset className="dashboard-shell min-h-screen font-sans">
           <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur">
             <div className="flex items-center gap-4">

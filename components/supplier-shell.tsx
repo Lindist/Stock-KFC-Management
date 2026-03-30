@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { DashboardManager } from "@/components/all_menu/dashboardmanager";
+import { DashboardAndManagerCacheAutoRefresh } from "@/components/cache-auto-refresh";
 import { StoreDashboard } from "@/components/all_menu/store-dashboard";
 import { DashboardDataCacheProvider } from "@/components/dashboard-data-cache";
 import { ManagerDashboardSync } from "@/components/manager-dashboard-sync";
@@ -59,6 +60,7 @@ export function SupplierShell({
       <SidebarSupplier user={user} activeItem={activeItem} onSelect={setActiveItem} />
       <DashboardDataCacheProvider initialData={dashboardData}>
         <ManagerDataCacheProvider initialData={managerData}>
+          <DashboardAndManagerCacheAutoRefresh />
           <ManagerDashboardSync />
           <SidebarInset className="dashboard-shell min-h-screen font-sans">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur">
