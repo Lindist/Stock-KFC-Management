@@ -39,13 +39,24 @@ function useSnapshotInterval(
       }
     };
 
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshSnapshot();
+      }
+    };
+
     const intervalId = window.setInterval(() => {
       void refreshSnapshot();
     }, AUTO_REFRESH_INTERVAL_MS);
 
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
     return () => {
       isCancelled = true;
       window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, [onSnapshot]);
 }
