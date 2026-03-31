@@ -245,13 +245,13 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
             <CardTitle>ใบสั่งซื้อ</CardTitle>
             <CardDescription>สร้างและแก้ไขใบสั่งซื้อจากวัตถุดิบจริงในระบบ พร้อมเลือก supplier จากผู้ใช้ที่มีสิทธิ์ store</CardDescription>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <div className="relative w-full sm:min-w-72 sm:flex-1">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+            <div className="relative w-full md:min-w-72 md:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหาเลขที่ PO / วัตถุดิบ / supplier" />
             </div>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | PurchaseOrderStatus)}>
-              <SelectTrigger className="w-full sm:w-44">
+              <SelectTrigger className="w-full md:w-44">
                 <SelectValue placeholder="สถานะ" />
               </SelectTrigger>
               <SelectContent>
@@ -261,7 +261,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
                 <SelectItem value="received">รับเข้าครบแล้ว</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate} className="w-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto">
+            <Button onClick={openCreate} className="w-full bg-sky-700 text-white hover:bg-sky-800 md:w-auto">
               <FilePlus2 className="mr-2 h-4 w-4" />
               เพิ่มใบสั่งซื้อ
             </Button>

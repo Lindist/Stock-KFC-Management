@@ -46,7 +46,7 @@ export function StaffShell({
       <DashboardDataCacheProvider initialData={dashboardData}>
         <DashboardCacheAutoRefresh />
         <SidebarInset className="dashboard-shell min-h-screen font-sans">
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur">
+          <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 shadow-sm backdrop-blur md:left-[var(--sidebar-width)]">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="-ml-2 text-slate-500 hover:text-slate-800" />
               <h1 className="text-sm font-medium text-slate-600">{activeMenu?.name}</h1>
@@ -64,7 +64,7 @@ export function StaffShell({
             </div>
           </header>
 
-          <main className="space-y-6 p-8">
+          <main className="space-y-6 p-8 pt-24">
             <NotificationsBanner
               data={dashboardData}
               onOpenDashboardTab={(tab) => {
