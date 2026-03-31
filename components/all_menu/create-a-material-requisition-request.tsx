@@ -111,10 +111,10 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center space-x-2 bg-slate-100 p-1 w-fit rounded-lg shadow-sm">
+      <div className="flex w-full flex-wrap gap-2 rounded-lg bg-slate-100 p-1 shadow-sm sm:w-fit sm:flex-nowrap sm:items-center sm:space-x-2">
         <button
           onClick={() => setActiveTab("create")}
-          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all sm:flex-none ${
             activeTab === "create" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
           }`}
         >
@@ -122,7 +122,7 @@ export function CreateMaterialRequest({ user }: { user?: any }) {
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all sm:flex-none ${
             activeTab === "history" ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
           }`}
         >

@@ -109,19 +109,19 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
             <CardTitle>รับวัตถุดิบเข้าคลัง</CardTitle>
             <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมบันทึกสถานะและจำนวนรับจริงลงฐานข้อมูล</CardDescription>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative min-w-72">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="relative w-full sm:min-w-72 sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
             </div>
-            <Button onClick={() => void confirmAllArrived()} className="bg-sky-700 text-white hover:bg-sky-800" disabled={isSubmitting}>
+            <Button onClick={() => void confirmAllArrived()} className="w-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto" disabled={isSubmitting}>
               รับครบทั้งหมด
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="arrived" className="gap-6">
-            <TabsList className="grid w-full grid-cols-2 bg-red-50/70">
+            <TabsList className="grid w-full grid-cols-1 bg-red-50/70 sm:grid-cols-2">
               <TabsTrigger value="arrived" className="gap-2">
                 <PackageCheck className="h-4 w-4" />
                 รอยืนยันรับเข้า

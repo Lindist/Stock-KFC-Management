@@ -244,13 +244,13 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             <CardTitle>คลังวัตถุดิบ</CardTitle>
             <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบโดยคำนวณสถานะจากสัดส่วนคงเหลือเทียบกับ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้</CardDescription>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative min-w-64">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="relative w-full sm:min-w-64 sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="ค้นหาจากรหัสหรือชื่อวัตถุดิบ" />
             </div>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | IngredientStockStatus)}>
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="กรองสถานะ" />
               </SelectTrigger>
               <SelectContent>
@@ -262,7 +262,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
                 <SelectItem value="expired">หมดอายุ</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={openCreate} className="bg-sky-700 text-white hover:bg-sky-800">
+            <Button onClick={openCreate} className="w-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               เพิ่มวัตถุดิบลงคลัง
             </Button>

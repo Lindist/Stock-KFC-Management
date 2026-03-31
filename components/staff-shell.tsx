@@ -53,7 +53,7 @@ export function StaffShell({
             </div>
 
             <div className="flex items-center gap-4 rounded-full border bg-white/95 px-3 py-1.5 shadow-sm">
-              <span className="text-sm font-medium text-slate-700">เธเธเธฑเธเธเธฒเธ</span>
+              <span className="text-sm font-medium text-slate-700">พนักงาน</span>
               <ManagerNotifications
                 data={dashboardData}
                 onOpenDashboardTab={(tab) => {

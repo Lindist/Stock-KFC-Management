@@ -121,10 +121,10 @@ export function NotificationsBanner({
         <Alert className="dashboard-panel border-red-200 bg-gradient-to-r from-red-50 via-white to-amber-50 text-red-950 shadow-sm">
           <TriangleAlert className="h-4 w-4 text-red-600" />
           <AlertTitle>มีคำขอรออนุมัติ</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className="pr-0 sm:pr-2">
             มีคำขอรออนุมัติ {approvalCount} รายการที่ควรตรวจสอบและตัดสินใจในระบบ
           </AlertDescription>
-          <AlertAction className="flex items-center gap-2">
+          <AlertAction>
             <Button
               size="sm"
               className="bg-red-600 text-white hover:bg-red-700"
@@ -149,10 +149,10 @@ export function NotificationsBanner({
         <Alert className="dashboard-panel border-sky-200 bg-gradient-to-r from-sky-50 via-white to-cyan-50 text-sky-950 shadow-sm">
           <ShoppingCart className="h-4 w-4 text-sky-600" />
           <AlertTitle>มีใบสั่งซื้อรอติดตาม</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className="pr-0 sm:pr-2">
             มีใบสั่งซื้อรอติดตาม {purchaseOrderCount} รายการที่ควรตรวจสอบสถานะการรับเข้า
           </AlertDescription>
-          <AlertAction className="flex items-center gap-2">
+          <AlertAction>
             <Button
               size="sm"
               className="bg-sky-600 text-white hover:bg-sky-700"
@@ -177,10 +177,10 @@ export function NotificationsBanner({
         <Alert className="dashboard-panel border-amber-200 bg-gradient-to-r from-amber-50 via-white to-yellow-50 text-amber-950 shadow-sm">
           <Package className="h-4 w-4 text-amber-600" />
           <AlertTitle>มีวัตถุดิบต่ำกว่าค่าแจ้งเตือน</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className="pr-0 sm:pr-2">
             พบ {lowThresholdCount} รายการที่ควรติดตามและอาจต้องวางแผนสั่งซื้อหรือเติมคลังเพิ่ม
           </AlertDescription>
-          <AlertAction className="flex items-center gap-2">
+          <AlertAction>
             <Button
               size="sm"
               className="bg-amber-600 text-white hover:bg-amber-700"
@@ -205,10 +205,10 @@ export function NotificationsBanner({
         <Alert className="dashboard-panel border-violet-200 bg-gradient-to-r from-violet-50 via-white to-rose-50 text-violet-950 shadow-sm">
           <Package className="h-4 w-4 text-violet-600" />
           <AlertTitle>มีวัตถุดิบใกล้หมดอายุหรือหมดอายุ</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className="pr-0 sm:pr-2">
             พบวัตถุดิบใกล้หมดอายุ {source.highlight.expiringIngredients} รายการ และหมดอายุแล้ว {source.highlight.expiredIngredients} รายการ
           </AlertDescription>
-          <AlertAction className="flex items-center gap-2">
+          <AlertAction>
             <Button
               size="sm"
               className="bg-violet-600 text-white hover:bg-violet-700"
@@ -269,10 +269,10 @@ export function ManagerNotifications({
 
       <DropdownMenuContent
         align="end"
-        sideOffset={8}
-        className="max-h-[75vh] w-[380px] overflow-y-auto rounded-xl shadow-lg"
+        sideOffset={10}
+        className="max-h-[min(72vh,34rem)] w-[min(90vw,22rem)] max-w-[90vw] overflow-y-auto rounded-xl p-0 shadow-lg sm:w-[24rem]"
       >
-        <DropdownMenuLabel className="flex items-center justify-between gap-2">
+        <DropdownMenuLabel className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
           <span>แจ้งเตือน</span>
           <Badge variant="outline">อัปเดต {formatDate(source.generatedAt)}</Badge>
         </DropdownMenuLabel>

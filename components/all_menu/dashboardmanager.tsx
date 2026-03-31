@@ -334,19 +334,19 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
         className="gap-4"
       >
         <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-2xl bg-white/55 p-1 shadow-sm backdrop-blur">
-          <TabsTrigger value="ingredients" className="data-[state=active]:bg-red-700 data-[state=active]:text-white">
+          <TabsTrigger value="ingredients" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             คลังวัตถุดิบ
           </TabsTrigger>
-          <TabsTrigger value="deductions" className="data-[state=active]:bg-red-700 data-[state=active]:text-white">
+          <TabsTrigger value="deductions" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             ประวัติตัดสต๊อก
           </TabsTrigger>
-          <TabsTrigger value="alerts" className="data-[state=active]:bg-red-700 data-[state=active]:text-white">
+          <TabsTrigger value="alerts" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             วัตถุดิบใกล้หมด
           </TabsTrigger>
-          <TabsTrigger value="orders" className="data-[state=active]:bg-red-700 data-[state=active]:text-white">
+          <TabsTrigger value="orders" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             ประวัติสั่งซื้อ
           </TabsTrigger>
-          <TabsTrigger value="receipts" className="data-[state=active]:bg-red-700 data-[state=active]:text-white">
+          <TabsTrigger value="receipts" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             ประวัติรับสินค้า
           </TabsTrigger>
         </TabsList>

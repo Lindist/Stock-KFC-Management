@@ -257,7 +257,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="create" className="gap-6">
-            <TabsList className="grid w-full grid-cols-3 bg-red-50/70">
+            <TabsList className="grid w-full grid-cols-1 bg-red-50/70 sm:grid-cols-3">
               <TabsTrigger value="create" className="gap-2">
                 <PackageMinus className="h-4 w-4" />
                 ฟอร์มขอเบิกวัตถุดิบ
