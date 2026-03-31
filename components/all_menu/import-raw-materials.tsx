@@ -109,7 +109,7 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
             <CardTitle>รับวัตถุดิบเข้าคลัง</CardTitle>
             <CardDescription>ยืนยันปริมาณที่รับเข้าจาก PO ที่ของมาถึงแล้ว พร้อมบันทึกสถานะและจำนวนรับจริงลงฐานข้อมูล</CardDescription>
           </div>
-          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap max-md:w-full">
             <div className="relative w-full md:min-w-72 md:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />

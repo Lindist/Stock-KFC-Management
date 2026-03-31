@@ -244,7 +244,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
             <CardTitle>คลังวัตถุดิบ</CardTitle>
             <CardDescription>ค้นหา กรองสถานะ และจัดการข้อมูลวัตถุดิบโดยคำนวณสถานะจากสัดส่วนคงเหลือเทียบกับ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้</CardDescription>
           </div>
-          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap max-md:w-full">
             <div className="relative w-full md:min-w-64 md:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="ค้นหาจากรหัสหรือชื่อวัตถุดิบ" />
