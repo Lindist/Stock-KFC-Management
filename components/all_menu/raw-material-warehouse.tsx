@@ -65,6 +65,16 @@ type IngredientFormState = {
   maxQty: number;
 };
 
+function getNextIngredientId(items: ManagerIngredientRow[]) {
+  const maxId = items.reduce((max, item) => {
+    const matched = item.itemId.match(/^ING(\d+)$/i);
+    const numericValue = matched ? Number(matched[1]) : 0;
+    return Number.isFinite(numericValue) ? Math.max(max, numericValue) : max;
+  }, 0);
+
+  return `ING${String(maxId + 1).padStart(3, "0")}`;
+}
+
 export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }) {
   const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
@@ -99,7 +109,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
   const openCreate = () => {
     setEditingItemId(null);
     setForm({
-      itemId: `ING${String(items.length + 1).padStart(3, "0")}`,
+      itemId: getNextIngredientId(items),
       itemName: "",
       unit: "",
       cost: 0,

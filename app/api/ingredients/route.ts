@@ -4,6 +4,22 @@ import Ingredient from "@/lib/models/Ingredient";
 import { getSession } from "@/lib/auth/auth";
 import { defaultAlertThreshold, deriveIngredientStockStatus } from "@/lib/inventory-utils";
 
+async function getNextIngredientId() {
+    const ingredients = await Ingredient.find(
+        { item_id: /^ING\d+$/i },
+        { item_id: 1, _id: 0 }
+    ).lean();
+
+    const maxId = ingredients.reduce((max, item) => {
+        const value = String(item.item_id ?? "");
+        const matched = value.match(/^ING(\d+)$/i);
+        const numericValue = matched ? Number(matched[1]) : 0;
+        return Number.isFinite(numericValue) ? Math.max(max, numericValue) : max;
+    }, 0);
+
+    return `ING${String(maxId + 1).padStart(3, "0")}`;
+}
+
 export async function GET() {
     try {
         const session = await getSession();
@@ -31,7 +47,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const itemId = String(body.itemId ?? "").trim();
+        const requestedItemId = String(body.itemId ?? "").trim();
         const itemName = String(body.itemName ?? "").trim();
         const unit = String(body.unit ?? "").trim();
         const expiryDate = String(body.expiryDate ?? "").trim();
@@ -40,7 +56,7 @@ export async function POST(request: NextRequest) {
         const maxQty = Number(body.maxQty ?? 0);
         const alertThreshold = Number(body.alertThreshold ?? defaultAlertThreshold(maxQty));
 
-        if (!itemId || !itemName || !unit || !expiryDate || Number.isNaN(cost) || Number.isNaN(currentQty) || Number.isNaN(maxQty) || Number.isNaN(alertThreshold) || maxQty <= 0) {
+        if (!itemName || !unit || !expiryDate || Number.isNaN(cost) || Number.isNaN(currentQty) || Number.isNaN(maxQty) || Number.isNaN(alertThreshold) || maxQty <= 0) {
             return NextResponse.json({ error: "Invalid ingredient payload" }, { status: 400 });
         }
 
@@ -50,9 +66,10 @@ export async function POST(request: NextRequest) {
 
         await connectDB();
 
-        const exists = await Ingredient.findOne({ item_id: itemId });
-        if (exists) {
-            return NextResponse.json({ error: "Ingredient ID already exists" }, { status: 409 });
+        let itemId = requestedItemId;
+        const exists = itemId ? await Ingredient.findOne({ item_id: itemId }) : null;
+        if (!itemId || exists) {
+            itemId = await getNextIngredientId();
         }
 
         const ingredient = await Ingredient.create({
