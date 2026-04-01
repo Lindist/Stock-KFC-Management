@@ -340,9 +340,9 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
             <AlertDialogTitle>ไม่สามารถอนุมัติรายการเบิกได้</AlertDialogTitle>
             <AlertDialogDescription>{approvalWarning ?? ""}</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex items-center justify-center">
+          <AlertDialogFooter className="flex! items-center justify-center">
             <AlertDialogAction
-              className="mx-auto w-auto self-center bg-emerald-600 text-white hover:bg-emerald-700"
+              className="mx-auto w-auto self-center bg-emerald-600! text-white hover:bg-emerald-700!"
               onClick={() => setApprovalWarning(null)}
             >
               รับทราบ
