@@ -480,7 +480,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Global Dashboard</h1>
           <p className="text-slate-500">ภาพรวมคลัง วัตถุดิบ การตัดสต็อก และใบสั่งซื้อจากฐานข้อมูลกลาง</p>

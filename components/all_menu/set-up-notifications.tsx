@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDashboardDataCache } from "@/components/dashboard-data-cache";
 import { useManagerDataCache } from "@/components/manager-data-cache";
@@ -27,6 +28,8 @@ function defaultThreshold(item: ManagerIngredientRow) {
 export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) {
   const { managerData, updateManagerData } = useManagerDataCache();
   const { updateDashboardData } = useDashboardDataCache();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "normal" | "low" | "expired">("all");
   const [thresholds, setThresholds] = useState<Record<string, number>>(
     () => Object.fromEntries((data?.ingredients ?? []).map((item) => [item.itemId, defaultThreshold(item)]))
   );
@@ -52,6 +55,28 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
       expiredCount,
     };
   }, [ingredients, thresholds]);
+
+  const filteredIngredients = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return ingredients.filter((item) => {
+      const threshold = thresholds[item.itemId] ?? defaultThreshold(item);
+      const expired = isExpired(item.expiryDate);
+      const low = item.currentQty <= threshold;
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.itemId.toLowerCase().includes(normalizedQuery) ||
+        item.itemName.toLowerCase().includes(normalizedQuery) ||
+        item.unit.toLowerCase().includes(normalizedQuery);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "expired" && expired) ||
+        (statusFilter === "low" && !expired && low) ||
+        (statusFilter === "normal" && !expired && !low);
+
+      return matchesQuery && matchesStatus;
+    });
+  }, [ingredients, query, statusFilter, thresholds]);
 
   const saveThresholds = async () => {
     try {
@@ -209,9 +234,28 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
             <CardTitle>ตั้งค่าแจ้งเตือนรายวัตถุดิบ</CardTitle>
             <CardDescription>ปรับค่า threshold รายแถว และบันทึกลงฐานข้อมูลจริงด้วยปุ่มเดียว</CardDescription>
           </div>
-          <Button onClick={() => void saveThresholds()} className={`${isSaved ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-sky-700 text-white hover:bg-sky-800'}`} disabled={isSubmitting}>
-            {isSubmitting ? "กำลังบันทึก..." : isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
-          </Button>
+          <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="ค้นหารหัส ชื่อวัตถุดิบ หรือหน่วย"
+              className="w-full lg:min-w-72"
+            />
+            <Select value={statusFilter} onValueChange={(value: "all" | "normal" | "low" | "expired") => setStatusFilter(value)}>
+              <SelectTrigger className="w-full lg:w-[220px]">
+                <SelectValue placeholder="กรองสถานะ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทั้งหมด</SelectItem>
+                <SelectItem value="normal">ปกติ</SelectItem>
+                <SelectItem value="low">ต่ำกว่าค่าแจ้งเตือน</SelectItem>
+                <SelectItem value="expired">หมดอายุ</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => void saveThresholds()} className={`${isSaved ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-sky-700 text-white hover:bg-sky-800'}`} disabled={isSubmitting}>
+              {isSubmitting ? "กำลังบันทึก..." : isSaved ? "บันทึกการตั้งค่าแล้ว" : "บันทึกทั้งหมด"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -227,13 +271,15 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ingredients.length === 0 ? (
+              {filteredIngredients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
-                    ไม่มีรายการตั้งค่าแจ้งเตือน
+                    {ingredients.length === 0
+                      ? "ไม่มีรายการตั้งค่าแจ้งเตือน"
+                      : "ไม่พบรายการที่ตรงกับคำค้นหาหรือตัวกรองสถานะ"}
                   </TableCell>
                 </TableRow>
-              ) : ingredients.map((item, index) => {
+              ) : filteredIngredients.map((item, index) => {
                 const threshold = thresholds[item.itemId] ?? defaultThreshold(item);
                 const expired = isExpired(item.expiryDate);
                 const low = item.currentQty <= threshold;

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useManagerDataCache } from "@/components/manager-data-cache";
@@ -22,6 +23,7 @@ function formatDate(value: string) {
 export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) {
   const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "arrived" | "received">("all");
   const [receivedQtyMap, setReceivedQtyMap] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const orders = managerData?.purchaseOrders ?? data?.purchaseOrders ?? [];
@@ -36,14 +38,22 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
     [orders, query]
   );
 
+  const statusMatchedOrders = useMemo(() => {
+    if (statusFilter === "all") {
+      return matchedOrders;
+    }
+
+    return matchedOrders.filter((item) => item.status === statusFilter);
+  }, [matchedOrders, statusFilter]);
+
   const arrivedOrders = useMemo(
-    () => matchedOrders.filter((item) => item.status === "arrived"),
-    [matchedOrders]
+    () => statusMatchedOrders.filter((item) => item.status === "arrived"),
+    [statusMatchedOrders]
   );
 
   const receivedOrders = useMemo(
-    () => matchedOrders.filter((item) => item.status === "received"),
-    [matchedOrders]
+    () => statusMatchedOrders.filter((item) => item.status === "received"),
+    [statusMatchedOrders]
   );
 
   const confirmReceive = async (poId: string, receiveAll = false) => {
@@ -114,6 +124,16 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="ค้นหา PO / วัตถุดิบ / supplier" />
             </div>
+            <Select value={statusFilter} onValueChange={(value: "all" | "arrived" | "received") => setStatusFilter(value)}>
+              <SelectTrigger className="w-full md:w-[210px]">
+                <SelectValue placeholder="กรองสถานะ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทั้งหมด</SelectItem>
+                <SelectItem value="arrived">ส่งของแล้ว</SelectItem>
+                <SelectItem value="received">รับเข้าแล้ว</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={() => void confirmAllArrived()} className="w-full bg-sky-700 text-white hover:bg-sky-800 md:w-auto" disabled={isSubmitting}>
               รับครบทั้งหมด
             </Button>
@@ -149,7 +169,9 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                   {arrivedOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
-                        ไม่มี PO ที่รอยืนยันรับเข้า
+                        {orders.filter((item) => item.status === "arrived").length === 0
+                          ? "ไม่มี PO ที่รอยืนยันรับเข้า"
+                          : "ไม่พบรายการที่ตรงกับคำค้นหาหรือตัวกรองสถานะ"}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -204,7 +226,9 @@ export function ImportRawMaterials({ data }: { data: ManagerPhaseData | null }) 
                   {receivedOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
-                        ไม่มีประวัติรับสินค้าที่ตรงกับคำค้นหา
+                        {orders.filter((item) => item.status === "received").length === 0
+                          ? "ไม่มีประวัติรับสินค้า"
+                          : "ไม่พบรายการที่ตรงกับคำค้นหาหรือตัวกรองสถานะ"}
                       </TableCell>
                     </TableRow>
                   ) : (
