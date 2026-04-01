@@ -18,8 +18,6 @@ import type {
   StockDeductionDashboardRow,
 } from "@/lib/types/dashboard";
 
-const TABLE_LIMIT = 6;
-
 const INGREDIENT_STOCK_STATUSES = ["in_stock", "low_stock", "out_of_stock", "expiring_soon", "expired"] as const;
 const ALERT_TYPES = ["low_stock", "out_of_stock"] as const;
 const PURCHASE_ORDER_STATUSES = ["pending", "received", "arrived"] as const;
@@ -90,6 +88,7 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
     totalLowStockAlerts,
     pendingDeductionApprovals,
     pendingPurchaseOrders,
+    arrivedPurchaseOrders,
     expiringIngredients,
     expiredIngredients,
     ingredients,
@@ -103,16 +102,15 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
     LowStockAlert.countDocuments(),
     StockDeduction.countDocuments({ status: "pending" }),
     PurchaseOrder.countDocuments({ po_status: "pending" }),
+    PurchaseOrder.countDocuments({ po_status: "arrived" }),
     Ingredient.countDocuments({ expiry_date: { $gte: now, $lte: threeDaysFromNow } }),
     Ingredient.countDocuments({ expiry_date: { $lt: now } }),
-    Ingredient.find({}).sort({ updatedAt: -1 }).limit(TABLE_LIMIT),
-    Ingredient.find({ expiry_date: { $lte: threeDaysFromNow } }).sort({ expiry_date: 1 }).limit(TABLE_LIMIT),
-    StockDeduction.find({}).sort({ deduct_time: -1 }).limit(TABLE_LIMIT),
-    LowStockAlert.find({}).sort({ alert_time: -1 }).limit(TABLE_LIMIT),
-    PurchaseOrder.find({}).sort({ createdAt: -1 }).limit(TABLE_LIMIT),
-    PurchaseOrder.find({ po_status: { $in: ["arrived", "received"] } })
-      .sort({ delivery_date: -1 })
-      .limit(TABLE_LIMIT),
+    Ingredient.find({}).sort({ updatedAt: -1 }),
+    Ingredient.find({ expiry_date: { $lte: threeDaysFromNow } }).sort({ expiry_date: 1 }),
+    StockDeduction.find({}).sort({ deduct_time: -1 }),
+    LowStockAlert.find({}).sort({ alert_time: -1 }),
+    PurchaseOrder.find({}).sort({ createdAt: -1 }),
+    PurchaseOrder.find({ po_status: { $in: ["arrived", "received"] } }).sort({ delivery_date: -1 }),
   ]);
 
   const ingredientIds = new Set<string>();
@@ -308,6 +306,7 @@ export async function getGlobalDashboardData(): Promise<GlobalDashboardData> {
       lowStockAlerts: totalLowStockAlerts,
       pendingDeductionApprovals,
       pendingPurchaseOrders,
+      arrivedPurchaseOrders,
       expiringIngredients,
       expiredIngredients,
     },

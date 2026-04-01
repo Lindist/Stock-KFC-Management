@@ -59,18 +59,21 @@ function getPeriodRange(period: ReportPeriod, anchor: Date) {
   }
 
   if (period === "week") {
-    start.setDate(start.getDate() - 6);
+    const dayOfWeek = start.getDay();
+    start.setDate(start.getDate() - dayOfWeek);
+    end.setDate(start.getDate() + 6);
     return { start, end };
   }
 
   if (period === "month") {
-    start.setDate(start.getDate() - 29);
+    start.setDate(1);
+    end.setMonth(end.getMonth() + 1, 0);
     return { start, end };
   }
 
   if (period === "year") {
     start.setMonth(0, 1);
-    end.setMonth(11, 30);
+    end.setMonth(11, 31);
     return { start, end };
   }
 
@@ -180,14 +183,14 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
   }, [reportType, source]);
 
   useEffect(() => {
-    if (period === "custom" || baseRows.length === 0) {
+    if (period === "custom") {
       return;
     }
 
     const { start, end } = getPeriodRange(period, new Date());
     setDateFrom(toDateInputValue(start));
     setDateTo(toDateInputValue(end));
-  }, [baseRows, period]);
+  }, [period]);
 
   const reportRows = useMemo(() => {
     const startDate = parseDateInput(dateFrom);
@@ -249,7 +252,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
           </style>
         </head>
         <body>
-          <h1>รายงาน ${reportType}</h1>
+          <h1>รายงาน ${translateReportType(reportType)}</h1>
           <p>ช่วงเวลา ${dateFrom} ถึง ${dateTo}</p>
           <table>
             <thead>

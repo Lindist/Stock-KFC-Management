@@ -106,6 +106,7 @@ export function reconcileDashboardCache(
   const receipts = purchaseOrders.filter((item) => item.status === "arrived" || item.status === "received");
   const pendingDeductionApprovals = stockDeductions.filter((item) => item.status === "pending").length;
   const pendingPurchaseOrders = purchaseOrders.filter((item) => item.status === "pending").length;
+  const arrivedPurchaseOrders = purchaseOrders.filter((item) => item.status === "arrived").length;
   const expiringIngredients = ingredients.filter((item) => item.stockStatus === "expiring_soon").length;
   const expiredIngredients = ingredients.filter((item) => item.stockStatus === "expired").length;
 
@@ -152,6 +153,7 @@ export function reconcileDashboardCache(
       lowStockAlerts: lowStockAlerts.length,
       pendingDeductionApprovals,
       pendingPurchaseOrders,
+      arrivedPurchaseOrders,
       expiringIngredients,
       expiredIngredients,
     },

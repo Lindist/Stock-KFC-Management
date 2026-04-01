@@ -68,6 +68,7 @@ export interface DashboardHighlight {
   lowStockAlerts: number;
   pendingDeductionApprovals: number;
   pendingPurchaseOrders: number;
+  arrivedPurchaseOrders: number;
   expiringIngredients: number;
   expiredIngredients: number;
 }

@@ -2,6 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { CheckCircle2, ClipboardList, History, PackageMinus, Search, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +60,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
   const [quantityById, setQuantityById] = useState<Record<string, number>>({});
   const [noteById, setNoteById] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [approvalWarning, setApprovalWarning] = useState<string | null>(null);
   const ingredients = managerData?.ingredients ?? data?.ingredients ?? [];
   const deductions = managerData?.stockDeductions ?? data?.stockDeductions ?? [];
 
@@ -137,6 +148,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
   );
 
   const submitRequest = async (status: StockDeductionStatus) => {
+    setApprovalWarning(null);
     const items = selectedItems.map((item) => ({
       itemId: item.itemId,
       deductQty: quantityById[item.itemId],
@@ -154,6 +166,17 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       });
 
       if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        if (response.status === 409 && payload?.insufficientItems) {
+          const detail = payload.insufficientItems
+            .map((item: { itemName: string; currentQty: number; requestedQty: number; reason: string }) =>
+              item.reason === "out_of_stock"
+                ? `${item.itemName} หมดสต็อก`
+                : `${item.itemName} คงเหลือ ${item.currentQty} แต่ขอเบิก ${item.requestedQty}`
+            )
+            .join(", ");
+          setApprovalWarning(`ไม่สามารถอนุมัติได้ เนื่องจากวัตถุดิบไม่พอหรือหมดสต็อก: ${detail}`);
+        }
         return;
       }
 
@@ -189,6 +212,7 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
   };
 
   const updatePendingStatus = async (transactionId: string, status: Extract<StockDeductionStatus, "approved" | "rejected">) => {
+    setApprovalWarning(null);
     try {
       setIsSubmitting(true);
       const response = await fetch(`/api/stock-deductions/${transactionId}`, {
@@ -198,6 +222,17 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
       });
 
       if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        if (response.status === 409 && payload?.insufficientItems) {
+          const detail = payload.insufficientItems
+            .map((item: { itemName: string; currentQty: number; requestedQty: number; reason: string }) =>
+              item.reason === "out_of_stock"
+                ? `${item.itemName} หมดสต็อก`
+                : `${item.itemName} คงเหลือ ${item.currentQty} แต่ขอเบิก ${item.requestedQty}`
+            )
+            .join(", ");
+          setApprovalWarning(`ไม่สามารถอนุมัติคำขอได้ เนื่องจากวัตถุดิบไม่พอหรือหมดสต็อก: ${detail}`);
+        }
         return;
       }
 
@@ -250,6 +285,25 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
 
   return (
     <section className="space-y-6">
+      <AlertDialog open={Boolean(approvalWarning)} onOpenChange={(open) => !open && setApprovalWarning(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-red-100 text-red-600">
+              <XCircle className="h-5 w-5" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>ไม่สามารถอนุมัติรายการเบิกได้</AlertDialogTitle>
+            <AlertDialogDescription>{approvalWarning ?? ""}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-center">
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => setApprovalWarning(null)}
+            >
+              รับทราบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Card className="dashboard-panel rounded-2xl border">
         <CardHeader>
           <CardTitle>ตัดสต็อกและอนุมัติคำขอเบิก</CardTitle>

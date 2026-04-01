@@ -30,12 +30,57 @@ export async function PATCH(
     }
 
     if (status === "approved") {
+      const insufficientItems: Array<{
+        itemId: string;
+        itemName: string;
+        currentQty: number;
+        requestedQty: number;
+        reason: "out_of_stock" | "insufficient_stock";
+      }> = [];
+
       for (const record of deductions) {
         if (record.status !== "pending") continue;
         const ingredient = await Ingredient.findOne({ item_id: record.item_id });
         if (!ingredient) continue;
 
-        const nextQty = Math.max(0, ingredient.current_qty - record.deduct_qty);
+        if (ingredient.current_qty <= 0) {
+          insufficientItems.push({
+            itemId: ingredient.item_id,
+            itemName: ingredient.item_name,
+            currentQty: ingredient.current_qty,
+            requestedQty: record.deduct_qty,
+            reason: "out_of_stock",
+          });
+          continue;
+        }
+
+        if (ingredient.current_qty < record.deduct_qty) {
+          insufficientItems.push({
+            itemId: ingredient.item_id,
+            itemName: ingredient.item_name,
+            currentQty: ingredient.current_qty,
+            requestedQty: record.deduct_qty,
+            reason: "insufficient_stock",
+          });
+        }
+      }
+
+      if (insufficientItems.length > 0) {
+        return NextResponse.json(
+          {
+            error: "Insufficient stock for approval",
+            insufficientItems,
+          },
+          { status: 409 }
+        );
+      }
+
+      for (const record of deductions) {
+        if (record.status !== "pending") continue;
+        const ingredient = await Ingredient.findOne({ item_id: record.item_id });
+        if (!ingredient) continue;
+
+        const nextQty = ingredient.current_qty - record.deduct_qty;
         ingredient.current_qty = nextQty;
         ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
         await ingredient.save();

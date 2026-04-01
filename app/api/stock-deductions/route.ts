@@ -30,6 +30,60 @@ export async function POST(request: NextRequest) {
     const transactionId = createTransactionId();
     const timestamp = new Date();
     const createdRows = [];
+    const insufficientItems: Array<{
+      itemId: string;
+      itemName: string;
+      currentQty: number;
+      requestedQty: number;
+      reason: "out_of_stock" | "insufficient_stock";
+    }> = [];
+
+    if (status === "approved") {
+      for (const item of items) {
+        const itemId = String(item.itemId ?? "").trim();
+        const deductQty = Number(item.deductQty ?? 0);
+
+        if (!itemId || Number.isNaN(deductQty) || deductQty <= 0) {
+          continue;
+        }
+
+        const ingredient = await Ingredient.findOne({ item_id: itemId });
+        if (!ingredient) {
+          continue;
+        }
+
+        if (ingredient.current_qty <= 0) {
+          insufficientItems.push({
+            itemId: ingredient.item_id,
+            itemName: ingredient.item_name,
+            currentQty: ingredient.current_qty,
+            requestedQty: deductQty,
+            reason: "out_of_stock",
+          });
+          continue;
+        }
+
+        if (ingredient.current_qty < deductQty) {
+          insufficientItems.push({
+            itemId: ingredient.item_id,
+            itemName: ingredient.item_name,
+            currentQty: ingredient.current_qty,
+            requestedQty: deductQty,
+            reason: "insufficient_stock",
+          });
+        }
+      }
+
+      if (insufficientItems.length > 0) {
+        return NextResponse.json(
+          {
+            error: "Insufficient stock for approval",
+            insufficientItems,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     for (const item of items) {
       const itemId = String(item.itemId ?? "").trim();
@@ -46,7 +100,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (status === "approved") {
-        const nextQty = Math.max(0, ingredient.current_qty - deductQty);
+        const nextQty = ingredient.current_qty - deductQty;
         ingredient.current_qty = nextQty;
         ingredient.stock_status = deriveIngredientStockStatus(nextQty, ingredient.max_qty ?? 0, ingredient.expiry_date);
         await ingredient.save();
