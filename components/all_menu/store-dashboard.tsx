@@ -368,7 +368,7 @@ export function StoreDashboard({ data }: { data: ManagerPhaseData | null }) {
       </Card>
 
       <Dialog open={selectedOrder !== null} onOpenChange={(open) => !open && setSelectedOrder(null)}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>รายละเอียดใบสั่งซื้อ</DialogTitle>
             <DialogDescription>

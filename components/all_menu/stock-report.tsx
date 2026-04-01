@@ -369,7 +369,7 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
           </div>
 
           <Card className="border-slate-200 bg-white/90 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col items-center lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle className="text-lg">ตัวอย่างข้อมูลรายงาน</CardTitle>
                 <CardDescription>หัวตารางจะเปลี่ยนตามประเภทรายงานที่เลือก</CardDescription>

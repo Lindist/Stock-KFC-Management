@@ -326,7 +326,7 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editingPoId ? "แก้ไขใบสั่งซื้อ" : "เพิ่มใบสั่งซื้อ"}</DialogTitle>
             <DialogDescription>เลือกวัตถุดิบและ supplier จากรายการในระบบ แล้วระบบจะคำนวณยอดรวมอัตโนมัติให้</DialogDescription>

@@ -332,7 +332,7 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItemId ? "แก้ไขวัตถุดิบ" : "เพิ่มวัตถุดิบลงคลัง"}</DialogTitle>
             <DialogDescription>ระบุ จำนวนมากที่สุดที่สามารถเก็บในสต็อกได้ เพื่อให้ระบบคำนวณสถานะจากสัดส่วนคงเหลืออัตโนมัติ</DialogDescription>
