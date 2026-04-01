@@ -121,6 +121,9 @@ export function ProfileEditDialog({
       if (avatarFile) {
         const formData = new FormData();
         formData.append("file", avatarFile);
+        if (imageUrl) {
+          formData.append("previousImageUrl", imageUrl);
+        }
 
         const uploadRes = await fetch("/api/upload-avatar", {
           method: "POST",

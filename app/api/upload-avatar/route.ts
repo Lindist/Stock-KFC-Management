@@ -9,12 +9,10 @@ const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 export async function POST(req: Request) {
     try {
         const session = await getSession();
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
 
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
+        const previousImageUrl = formData.get("previousImageUrl");
 
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -36,7 +34,8 @@ export async function POST(req: Request) {
 
         // Generate unique filename
         const ext = file.name.split(".").pop() || "png";
-        const filename = `${session.user.id}-${Date.now()}.${ext}`;
+        const fileOwner = session?.user?.id ?? `guest-${crypto.randomUUID()}`;
+        const filename = `${fileOwner}-${Date.now()}.${ext}`;
 
         // Write file to public/uploads/avatars/
         const uploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
@@ -47,6 +46,17 @@ export async function POST(req: Request) {
         await fs.writeFile(filePath, buffer);
 
         const url = `/uploads/avatars/${filename}`;
+
+        if (typeof previousImageUrl === "string" && previousImageUrl.startsWith("/uploads/avatars/")) {
+            const previousFilename = path.basename(previousImageUrl);
+            const previousFilePath = path.join(uploadsDir, previousFilename);
+
+            if (previousFilePath !== filePath) {
+                await fs.unlink(previousFilePath).catch(() => {
+                    return;
+                });
+            }
+        }
 
         return NextResponse.json({ success: true, url });
     } catch (error) {
