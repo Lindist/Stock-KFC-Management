@@ -227,7 +227,13 @@ export function SetUpNotifications({ data }: { data: ManagerPhaseData | null }) 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ingredients.map((item, index) => {
+              {ingredients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
+                    ไม่มีรายการตั้งค่าแจ้งเตือน
+                  </TableCell>
+                </TableRow>
+              ) : ingredients.map((item, index) => {
                 const threshold = thresholds[item.itemId] ?? defaultThreshold(item);
                 const expired = isExpired(item.expiryDate);
                 const low = item.currentQty <= threshold;

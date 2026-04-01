@@ -283,35 +283,43 @@ export function PurchaseOrders({ data }: { data: ManagerPhaseData | null }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((item, index) => (
-                <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-red-100/90">
-                  <TableCell className="font-medium">{item.poId}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p>{item.itemName}</p>
-                      <p className="text-xs text-slate-500">{item.itemId}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.supplierName}</TableCell>
-                  <TableCell>{item.orderQty.toLocaleString("th-TH")} {item.unit}</TableCell>
-                  <TableCell>{item.receivedQty.toLocaleString("th-TH")} {item.unit}</TableCell>
-                  <TableCell>{formatCurrency(item.priceTotal)}</TableCell>
-                  <TableCell>{formatDate(item.deliveryDate)}</TableCell>
-                  <TableCell>
-                    <Badge className={badgeClass(item.status)}>{statusLabel(item.status)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => void deleteOrder(item.poId)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+              {filteredOrders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-slate-500">
+                    ไม่มีรายการใบสั่งซื้อ
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredOrders.map((item, index) => (
+                  <TableRow key={`${item.poId}-${item.itemId}-${index}`} className="transition-colors hover:bg-red-100/90">
+                    <TableCell className="font-medium">{item.poId}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p>{item.itemName}</p>
+                        <p className="text-xs text-slate-500">{item.itemId}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.supplierName}</TableCell>
+                    <TableCell>{item.orderQty.toLocaleString("th-TH")} {item.unit}</TableCell>
+                    <TableCell>{item.receivedQty.toLocaleString("th-TH")} {item.unit}</TableCell>
+                    <TableCell>{formatCurrency(item.priceTotal)}</TableCell>
+                    <TableCell>{formatDate(item.deliveryDate)}</TableCell>
+                    <TableCell>
+                      <Badge className={badgeClass(item.status)}>{statusLabel(item.status)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => void deleteOrder(item.poId)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

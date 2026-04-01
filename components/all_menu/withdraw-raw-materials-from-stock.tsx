@@ -291,7 +291,14 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredIngredients.map((item) => (
+                      {filteredIngredients.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-8 text-center text-sm text-slate-500">
+                            ไม่มีรายการวัตถุดิบสำหรับเบิก
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredIngredients.map((item) => (
                         <TableRow key={item.itemId} className="transition-colors hover:bg-red-100/90">
                           <TableCell className="font-medium">{item.itemId}</TableCell>
                           <TableCell>{item.itemName}</TableCell>
@@ -325,7 +332,8 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                             />
                           </TableCell>
                         </TableRow>
-                      ))}
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -440,7 +448,14 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredHistory.map((item, index) => (
+                      {filteredHistory.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">
+                            ไม่มีประวัติการตัดสต๊อก
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredHistory.map((item, index) => (
                         <TableRow key={`${item.transactionId}-${item.deductTime}-${index}`} className="transition-colors hover:bg-red-100/90">
                           <TableCell className="font-medium">{item.transactionId}</TableCell>
                           <TableCell>{item.items.join(", ")}</TableCell>
@@ -452,7 +467,8 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
                           <TableCell>{formatDateTime(item.deductTime)}</TableCell>
                           <TableCell>{item.note || "-"}</TableCell>
                         </TableRow>
-                      ))}
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>

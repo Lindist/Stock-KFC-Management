@@ -294,30 +294,38 @@ export function RawMaterialWarehouse({ data }: { data: ManagerPhaseData | null }
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.itemId} className="transition-colors hover:bg-sky-100/90">
-                  <TableCell className="font-medium">{item.itemId}</TableCell>
-                  <TableCell>{item.itemName}</TableCell>
-                  <TableCell>{item.currentQty}</TableCell>
-                  <TableCell>{item.maxQty}</TableCell>
-                  <TableCell>{item.unit}</TableCell>
-                  <TableCell>
-                    <Badge className={badgeClass(item.stockStatus)}>{readableStatusLabel(item.stockStatus)}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(item.expiryDate)}</TableCell>
-                  <TableCell>{formatCurrency(item.cost)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => void deleteItem(item.itemId)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+              {filteredItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-slate-500">
+                    ไม่มีรายการวัตถุดิบ
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredItems.map((item) => (
+                  <TableRow key={item.itemId} className="transition-colors hover:bg-sky-100/90">
+                    <TableCell className="font-medium">{item.itemId}</TableCell>
+                    <TableCell>{item.itemName}</TableCell>
+                    <TableCell>{item.currentQty}</TableCell>
+                    <TableCell>{item.maxQty}</TableCell>
+                    <TableCell>{item.unit}</TableCell>
+                    <TableCell>
+                      <Badge className={badgeClass(item.stockStatus)}>{readableStatusLabel(item.stockStatus)}</Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(item.expiryDate)}</TableCell>
+                    <TableCell>{formatCurrency(item.cost)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => void deleteItem(item.itemId)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

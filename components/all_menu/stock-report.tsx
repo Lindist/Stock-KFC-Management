@@ -388,15 +388,23 @@ export function StockReport({ data }: { data: ManagerPhaseData | null }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportRows.map((row) => (
-                    <TableRow key={row.key} className="transition-colors hover:bg-red-100/90">
-                      <TableCell className="font-medium">{row.primary}</TableCell>
-                      <TableCell>{row.secondary}</TableCell>
-                      <TableCell>{row.metricA}</TableCell>
-                      <TableCell>{row.metricB}</TableCell>
-                      <TableCell>{row.metricC}</TableCell>
+                  {reportRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-sm text-slate-500">
+                        ไม่มีรายการรายงาน
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    reportRows.map((row) => (
+                      <TableRow key={row.key} className="transition-colors hover:bg-red-100/90">
+                        <TableCell className="font-medium">{row.primary}</TableCell>
+                        <TableCell>{row.secondary}</TableCell>
+                        <TableCell>{row.metricA}</TableCell>
+                        <TableCell>{row.metricB}</TableCell>
+                        <TableCell>{row.metricC}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

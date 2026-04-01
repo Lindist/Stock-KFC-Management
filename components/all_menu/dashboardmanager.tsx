@@ -8,10 +8,19 @@ import {
   ClipboardCheck,
   PackageCheck,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -34,6 +43,17 @@ type DashboardManagerProps = {
   data: GlobalDashboardData;
   initialTab?: string;
   onTabChange?: (tab: string) => void;
+};
+
+type DashboardTabValue = "ingredients" | "deductions" | "alerts" | "orders" | "receipts";
+
+type GroupedDeductionRow = {
+  transactionId: string;
+  itemSummary: string;
+  totalQty: number;
+  requestedBy: string;
+  deductTime: string;
+  status: StockDeductionStatus;
 };
 
 const metricIcons = {
@@ -107,7 +127,7 @@ function stockStatusLabel(status: IngredientStockStatus) {
   }
 
   if (status === "out_of_stock") {
-    return "หมดสต๊อก";
+    return "หมดสต็อก";
   }
 
   if (status === "low_stock") {
@@ -155,10 +175,10 @@ function stockStatusBadgeClass(status: IngredientStockStatus) {
 
 function alertTypeLabel(type: LowStockAlertType) {
   if (type === "out_of_stock") {
-    return "หมดสต๊อก";
+    return "หมดสต็อก";
   }
 
-  return "สต๊อกต่ำ";
+  return "สต็อกต่ำ";
 }
 
 function alertTypeBadgeClass(type: LowStockAlertType) {
@@ -175,7 +195,7 @@ function deductionStatusLabel(status: StockDeductionStatus) {
   }
 
   if (status === "rejected") {
-    return "ถูกปฏิเสธ";
+    return "ปฏิเสธ";
   }
 
   return "รออนุมัติ";
@@ -199,7 +219,7 @@ function orderStatusLabel(status: PurchaseOrderStatus) {
   }
 
   if (status === "arrived") {
-    return "สินค้ามาถึง";
+    return "ส่งของแล้ว";
   }
 
   return "รอดำเนินการ";
@@ -237,22 +257,69 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+function NoResultState({ message }: { message: string }) {
+  return (
+    <div className="dashboard-panel flex min-h-28 items-center justify-center rounded-lg border border-dashed border-border/70 bg-white/70 text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+}
+
+function TabToolbar({
+  searchQuery,
+  onSearchChange,
+  filterValue,
+  onFilterChange,
+  searchPlaceholder,
+  filterPlaceholder,
+  options,
+}: {
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  filterValue: string;
+  onFilterChange: (value: string) => void;
+  searchPlaceholder: string;
+  filterPlaceholder: string;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
+      <div className="relative w-full md:flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={searchPlaceholder}
+          className="h-10 w-full rounded-xl bg-white pl-9"
+        />
+      </div>
+      <Select value={filterValue} onValueChange={onFilterChange}>
+        <SelectTrigger className="h-10 w-full rounded-xl bg-white md:w-56">
+          <SelectValue placeholder={filterPlaceholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function DashboardManager({ data, initialTab, onTabChange }: DashboardManagerProps) {
   const { dashboardData } = useDashboardDataCache();
   const source = dashboardData ?? data;
-  const [activeTab, setActiveTab] = useState(initialTab ?? "ingredients");
+  const [activeTab, setActiveTab] = useState<DashboardTabValue>(
+    (initialTab as DashboardTabValue | undefined) ?? "ingredients"
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterValue, setFilterValue] = useState("all");
+
   const groupedStockDeductions = useMemo(() => {
-    const grouped = new Map<
-      string,
-      {
-        transactionId: string;
-        itemSummary: string;
-        totalQty: number;
-        requestedBy: string;
-        deductTime: string;
-        status: StockDeductionStatus;
-      }
-    >();
+    const grouped = new Map<string, GroupedDeductionRow>();
 
     for (const item of source.stockDeductions) {
       const current = grouped.get(item.transactionId);
@@ -277,14 +344,146 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
     );
   }, [source.stockDeductions]);
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredIngredients = useMemo(() => {
+    return source.ingredients.filter((item) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.itemId.toLowerCase().includes(normalizedQuery) ||
+        item.itemName.toLowerCase().includes(normalizedQuery) ||
+        item.unit.toLowerCase().includes(normalizedQuery);
+      const matchesFilter = filterValue === "all" || item.stockStatus === filterValue;
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterValue, normalizedQuery, source.ingredients]);
+
+  const filteredDeductions = useMemo(() => {
+    return groupedStockDeductions.filter((item) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.transactionId.toLowerCase().includes(normalizedQuery) ||
+        item.itemSummary.toLowerCase().includes(normalizedQuery) ||
+        item.requestedBy.toLowerCase().includes(normalizedQuery);
+      const matchesFilter = filterValue === "all" || item.status === filterValue;
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterValue, groupedStockDeductions, normalizedQuery]);
+
+  const filteredAlerts = useMemo(() => {
+    return source.lowStockAlerts.filter((item) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.alertId.toLowerCase().includes(normalizedQuery) ||
+        item.itemId.toLowerCase().includes(normalizedQuery) ||
+        item.itemName.toLowerCase().includes(normalizedQuery);
+      const matchesFilter = filterValue === "all" || item.alertType === filterValue;
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterValue, normalizedQuery, source.lowStockAlerts]);
+
+  const filteredOrders = useMemo(() => {
+    return source.purchaseOrders.filter((item) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.poId.toLowerCase().includes(normalizedQuery) ||
+        item.itemId.toLowerCase().includes(normalizedQuery) ||
+        item.itemName.toLowerCase().includes(normalizedQuery) ||
+        item.supplierName.toLowerCase().includes(normalizedQuery);
+      const matchesFilter = filterValue === "all" || item.status === filterValue;
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterValue, normalizedQuery, source.purchaseOrders]);
+
+  const filteredReceipts = useMemo(() => {
+    return source.receipts.filter((item) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        item.poId.toLowerCase().includes(normalizedQuery) ||
+        item.itemId.toLowerCase().includes(normalizedQuery) ||
+        item.itemName.toLowerCase().includes(normalizedQuery) ||
+        item.supplierName.toLowerCase().includes(normalizedQuery);
+      const matchesFilter = filterValue === "all" || item.status === filterValue;
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filterValue, normalizedQuery, source.receipts]);
+
+  const toolbarConfig = useMemo(() => {
+    if (activeTab === "deductions") {
+      return {
+        searchPlaceholder: "ค้นหาจากรหัสคำขอ ผู้ขอเบิก หรือวัตถุดิบ",
+        filterPlaceholder: "กรองสถานะคำขอ",
+        options: [
+          { value: "all", label: "ทั้งหมด" },
+          { value: "pending", label: deductionStatusLabel("pending") },
+          { value: "approved", label: deductionStatusLabel("approved") },
+          { value: "rejected", label: deductionStatusLabel("rejected") },
+        ],
+      };
+    }
+
+    if (activeTab === "alerts") {
+      return {
+        searchPlaceholder: "ค้นหา Alert ID รหัส หรือชื่อวัตถุดิบ",
+        filterPlaceholder: "กรองประเภทแจ้งเตือน",
+        options: [
+          { value: "all", label: "ทั้งหมด" },
+          { value: "low_stock", label: alertTypeLabel("low_stock") },
+          { value: "out_of_stock", label: alertTypeLabel("out_of_stock") },
+        ],
+      };
+    }
+
+    if (activeTab === "orders") {
+      return {
+        searchPlaceholder: "ค้นหาเลขที่ PO, supplier หรือวัตถุดิบ",
+        filterPlaceholder: "กรองสถานะใบสั่งซื้อ",
+        options: [
+          { value: "all", label: "ทั้งหมด" },
+          { value: "pending", label: orderStatusLabel("pending") },
+          { value: "arrived", label: orderStatusLabel("arrived") },
+          { value: "received", label: orderStatusLabel("received") },
+        ],
+      };
+    }
+
+    if (activeTab === "receipts") {
+      return {
+        searchPlaceholder: "ค้นหาเลขที่ PO, supplier หรือวัตถุดิบ",
+        filterPlaceholder: "กรองสถานะการรับเข้า",
+        options: [
+          { value: "all", label: "ทั้งหมด" },
+          { value: "arrived", label: orderStatusLabel("arrived") },
+          { value: "received", label: orderStatusLabel("received") },
+        ],
+      };
+    }
+
+    return {
+      searchPlaceholder: "ค้นหาจากรหัสหรือชื่อวัตถุดิบ",
+      filterPlaceholder: "กรองสถานะวัตถุดิบ",
+      options: [
+        { value: "all", label: "ทั้งหมด" },
+        { value: "in_stock", label: stockStatusLabel("in_stock") },
+        { value: "low_stock", label: stockStatusLabel("low_stock") },
+        { value: "out_of_stock", label: stockStatusLabel("out_of_stock") },
+        { value: "expiring_soon", label: stockStatusLabel("expiring_soon") },
+        { value: "expired", label: stockStatusLabel("expired") },
+      ],
+    };
+  }, [activeTab]);
+
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Global Dashboard</h1>
-          <p className="text-slate-500">
-            ภาพรวมคลัง วัตถุดิบ การตัดสต๊อก และใบสั่งซื้อจากฐานข้อมูลกลาง
-          </p>
+          <p className="text-slate-500">ภาพรวมคลัง วัตถุดิบ การตัดสต็อก และใบสั่งซื้อจากฐานข้อมูลกลาง</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-slate-300 bg-white/85 text-slate-700 shadow-sm">
@@ -328,7 +527,9 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
-          setActiveTab(value);
+          setActiveTab(value as DashboardTabValue);
+          setSearchQuery("");
+          setFilterValue("all");
           onTabChange?.(value);
         }}
         className="gap-4"
@@ -338,7 +539,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
             คลังวัตถุดิบ
           </TabsTrigger>
           <TabsTrigger value="deductions" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
-            ประวัติตัดสต๊อก
+            ประวัติตัดสต็อก
           </TabsTrigger>
           <TabsTrigger value="alerts" className="w-full sm:w-auto data-[state=active]:bg-red-700 data-[state=active]:text-white">
             วัตถุดิบใกล้หมด
@@ -355,11 +556,22 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
           <Card className="dashboard-panel shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>คลังวัตถุดิบ</CardTitle>
-              <CardDescription>แสดงข้อมูลวัตถุดิบล่าสุดจากฐานข้อมูล พร้อมสถานะสต๊อกและวันหมดอายุ</CardDescription>
+              <CardDescription>แสดงข้อมูลวัตถุดิบล่าสุดจากฐานข้อมูล พร้อมสถานะสต็อกและวันหมดอายุ</CardDescription>
             </CardHeader>
             <CardContent>
+              <TabToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                searchPlaceholder={toolbarConfig.searchPlaceholder}
+                filterPlaceholder={toolbarConfig.filterPlaceholder}
+                options={toolbarConfig.options}
+              />
               {source.ingredients.length === 0 ? (
                 <EmptyState message="ยังไม่มีข้อมูลวัตถุดิบในระบบ" />
+              ) : filteredIngredients.length === 0 ? (
+                <NoResultState message="ไม่พบรายการวัตถุดิบที่ตรงกับคำค้นหาหรือเงื่อนไขที่เลือก" />
               ) : (
                 <Table className="rounded-xl">
                   <TableHeader className="bg-[rgba(148,163,184,0.08)]">
@@ -374,7 +586,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {source.ingredients.map((item) => (
+                    {filteredIngredients.map((item) => (
                       <TableRow key={item.itemId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.itemId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
@@ -402,12 +614,23 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
         <TabsContent value="deductions">
           <Card className="dashboard-panel shadow-sm backdrop-blur">
             <CardHeader>
-              <CardTitle>ประวัติการตัดสต๊อก</CardTitle>
-              <CardDescription>รวมคำขอเบิก การอนุมัติ และผลการตัดสต๊อกจาก `StockDeduction`</CardDescription>
+              <CardTitle>ประวัติการตัดสต็อก</CardTitle>
+              <CardDescription>รวมคำขอเบิก การอนุมัติ และผลการตัดสต็อกจาก StockDeduction</CardDescription>
             </CardHeader>
             <CardContent>
+              <TabToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                searchPlaceholder={toolbarConfig.searchPlaceholder}
+                filterPlaceholder={toolbarConfig.filterPlaceholder}
+                options={toolbarConfig.options}
+              />
               {groupedStockDeductions.length === 0 ? (
-                <EmptyState message="ยังไม่มีประวัติการตัดสต๊อก" />
+                <EmptyState message="ยังไม่มีประวัติการตัดสต็อก" />
+              ) : filteredDeductions.length === 0 ? (
+                <NoResultState message="ไม่พบประวัติการตัดสต๊อกที่ตรงกับคำค้นหาหรือเงื่อนไขที่เลือก" />
               ) : (
                 <Table className="rounded-xl">
                   <TableHeader className="bg-[rgba(148,163,184,0.08)]">
@@ -421,11 +644,8 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {groupedStockDeductions.map((item) => (
-                      <TableRow
-                        key={`${item.transactionId}-${item.deductTime}`}
-                        className={rowHoverClass}
-                      >
+                    {filteredDeductions.map((item) => (
+                      <TableRow key={`${item.transactionId}-${item.deductTime}`} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.transactionId}</TableCell>
                         <TableCell>{item.itemSummary}</TableCell>
                         <TableCell>{item.totalQty}</TableCell>
@@ -449,11 +669,22 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
           <Card className="dashboard-panel shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>วัตถุดิบใกล้หมด</CardTitle>
-              <CardDescription>รายการแจ้งเตือนจาก `LowStockAlert` สำหรับติดตามสต๊อกต่ำ หมดสต๊อก และใกล้หมดอายุ</CardDescription>
+              <CardDescription>รายการแจ้งเตือนจาก LowStockAlert สำหรับติดตามสต็อกต่ำและหมดสต็อก</CardDescription>
             </CardHeader>
             <CardContent>
+              <TabToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                searchPlaceholder={toolbarConfig.searchPlaceholder}
+                filterPlaceholder={toolbarConfig.filterPlaceholder}
+                options={toolbarConfig.options}
+              />
               {source.lowStockAlerts.length === 0 ? (
                 <EmptyState message="ยังไม่มีรายการแจ้งเตือน" />
+              ) : filteredAlerts.length === 0 ? (
+                <NoResultState message="ไม่พบรายการแจ้งเตือนที่ตรงกับคำค้นหาหรือเงื่อนไขที่เลือก" />
               ) : (
                 <Table className="rounded-xl">
                   <TableHeader className="bg-[rgba(148,163,184,0.08)]">
@@ -466,7 +697,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {source.lowStockAlerts.map((item) => (
+                    {filteredAlerts.map((item) => (
                       <TableRow key={item.alertId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.alertId}</TableCell>
                         <TableCell>{item.itemName}</TableCell>
@@ -490,11 +721,22 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
           <Card className="dashboard-panel shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>ประวัติสั่งซื้อ</CardTitle>
-              <CardDescription>สรุปรายการ PO ล่าสุดจาก `PurchaseOrder` พร้อมผู้อนุมัติ สถานะ และยอดรวม</CardDescription>
+              <CardDescription>สรุปรายการ PO ล่าสุด พร้อม supplier สถานะ และยอดรวม</CardDescription>
             </CardHeader>
             <CardContent>
+              <TabToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                searchPlaceholder={toolbarConfig.searchPlaceholder}
+                filterPlaceholder={toolbarConfig.filterPlaceholder}
+                options={toolbarConfig.options}
+              />
               {source.purchaseOrders.length === 0 ? (
                 <EmptyState message="ยังไม่มีข้อมูลใบสั่งซื้อ" />
+              ) : filteredOrders.length === 0 ? (
+                <NoResultState message="ไม่พบรายการใบสั่งซื้อที่ตรงกับคำค้นหาหรือเงื่อนไขที่เลือก" />
               ) : (
                 <Table className="rounded-xl">
                   <TableHeader className="bg-[rgba(148,163,184,0.08)]">
@@ -509,7 +751,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {source.purchaseOrders.map((item) => (
+                    {filteredOrders.map((item) => (
                       <TableRow key={item.poId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>
@@ -535,11 +777,22 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
           <Card className="dashboard-panel shadow-sm backdrop-blur">
             <CardHeader>
               <CardTitle>ประวัติรับสินค้า</CardTitle>
-              <CardDescription>แสดงเฉพาะ PO ที่สถานะเป็น `arrived` หรือ `received` เพื่อใช้ติดตามการรับเข้า</CardDescription>
+              <CardDescription>แสดงเฉพาะ PO ที่อยู่ในสถานะส่งของแล้วหรือรับเข้าแล้วเพื่อติดตามการรับเข้า</CardDescription>
             </CardHeader>
             <CardContent>
+              <TabToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterValue={filterValue}
+                onFilterChange={setFilterValue}
+                searchPlaceholder={toolbarConfig.searchPlaceholder}
+                filterPlaceholder={toolbarConfig.filterPlaceholder}
+                options={toolbarConfig.options}
+              />
               {source.receipts.length === 0 ? (
                 <EmptyState message="ยังไม่มีประวัติรับสินค้า" />
+              ) : filteredReceipts.length === 0 ? (
+                <NoResultState message="ไม่พบประวัติรับสินค้าที่ตรงกับคำค้นหาหรือเงื่อนไขที่เลือก" />
               ) : (
                 <Table className="rounded-xl">
                   <TableHeader className="bg-[rgba(148,163,184,0.08)]">
@@ -554,7 +807,7 @@ export function DashboardManager({ data, initialTab, onTabChange }: DashboardMan
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {source.receipts.map((item) => (
+                    {filteredReceipts.map((item) => (
                       <TableRow key={item.poId} className={rowHoverClass}>
                         <TableCell className="font-medium">{item.poId}</TableCell>
                         <TableCell>{item.supplierName}</TableCell>
