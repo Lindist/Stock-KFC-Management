@@ -414,7 +414,11 @@ export function WithdrawRawMaterialsFromStock({ data }: { data: ManagerPhaseData
               </div>
 
               <Card className="border-red-100 bg-white/90 shadow-sm">
-                <CardContent className="pt-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">รายการวัตถุดิบ</CardTitle>
+                  <CardDescription>รวมรายการวัตถุดิบ เพื่อให้อนุมัติหรือเบิกได้ง่ายขึ้น</CardDescription>
+                </CardHeader>
+                <CardContent>
                   <Table>
                     <TableHeader className="bg-red-50/70">
                       <TableRow>
