@@ -19,7 +19,7 @@ import {
   managerMainMenu,
   managerOrderMenu,
 } from "@/components/sidebarmenu";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
 import type { ManagerPhaseData } from "@/lib/types/manager";
 
@@ -28,6 +28,48 @@ const menuMeta = [...managerMainMenu, ...managerOrderMenu];
 type ManagerShellUser = {
   role?: string | null;
 };
+
+function ManagerShellContent({
+  user,
+  dashboardData,
+  activeMenuName,
+  onOpenDashboardTab,
+  children,
+}: {
+  user?: ManagerShellUser;
+  dashboardData: GlobalDashboardData;
+  activeMenuName?: string;
+  onOpenDashboardTab: (tab: string, menuId?: string) => void;
+  children: ReactNode;
+}) {
+  const { state } = useSidebar();
+  const desktopLeft = state === "collapsed" ? "md:left-0" : "md:left-[var(--sidebar-width)]";
+
+  return (
+    <SidebarInset className="dashboard-shell min-h-screen font-sans">
+      <header
+        className={`fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm transition-[left] duration-200 ease-linear ${desktopLeft}`}
+      >
+        <div className="flex items-center gap-4">
+          <SidebarTrigger className="-ml-2 text-slate-500 hover:text-slate-800" />
+          <h1 className="text-sm font-medium text-slate-600">{activeMenuName}</h1>
+        </div>
+
+        <div className="flex items-center gap-4 rounded-full border bg-white px-3 py-1.5 shadow-sm">
+          <span className="text-sm font-medium text-slate-700">
+            {user?.role === "manager" ? "ผู้จัดการ" : "Store"}
+          </span>
+          <ManagerNotifications data={dashboardData} onOpenDashboardTab={onOpenDashboardTab} />
+        </div>
+      </header>
+
+      <main className="space-y-6 p-8 pt-24">
+        <NotificationsBanner data={dashboardData} onOpenDashboardTab={onOpenDashboardTab} />
+        {children}
+      </main>
+    </SidebarInset>
+  );
+}
 
 export function ManagerShell({
   user,
@@ -41,6 +83,7 @@ export function ManagerShell({
   const [activeItem, setActiveItem] = useState<ManagerMenuItemId>("dashboard");
   const [dashboardTab, setDashboardTab] = useState<string>("ingredients");
   const activeMenu = menuMeta.find((item) => item.id === activeItem);
+
   const openManagerTarget = (tab: string, menuId?: string) => {
     const targetMenu = menuMeta.find((item) => item.id === menuId)?.id;
 
@@ -78,32 +121,14 @@ export function ManagerShell({
         <ManagerDataCacheProvider initialData={managerData}>
           <DashboardAndManagerCacheAutoRefresh />
           <ManagerDashboardSync />
-          <SidebarInset className="dashboard-shell min-h-screen font-sans">
-            <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm md:left-[var(--sidebar-width)]">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger className="-ml-2 text-slate-500 hover:text-slate-800" />
-                <h1 className="text-sm font-medium text-slate-600">{activeMenu?.name}</h1>
-              </div>
-
-              <div className="flex items-center gap-4 rounded-full border bg-white px-3 py-1.5 shadow-sm">
-                <span className="text-sm font-medium text-slate-700">
-                  {user?.role === "manager" ? "ผู้จัดการ" : "Store"}
-                </span>
-                <ManagerNotifications
-                  data={dashboardData}
-                  onOpenDashboardTab={openManagerTarget}
-                />
-              </div>
-            </header>
-
-            <main className="space-y-6 p-8 pt-24">
-              <NotificationsBanner
-                data={dashboardData}
-                onOpenDashboardTab={openManagerTarget}
-              />
-              {menuComponents[activeItem]}
-            </main>
-          </SidebarInset>
+          <ManagerShellContent
+            user={user}
+            dashboardData={dashboardData}
+            activeMenuName={activeMenu?.name}
+            onOpenDashboardTab={openManagerTarget}
+          >
+            {menuComponents[activeItem]}
+          </ManagerShellContent>
         </ManagerDataCacheProvider>
       </DashboardDataCacheProvider>
     </SidebarProvider>
