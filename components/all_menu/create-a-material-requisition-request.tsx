@@ -6,7 +6,17 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+
+type IngredientApiItem = {
+  _id?: string;
+  item_id?: string;
+  item_name?: string;
+  current_qty?: number;
+  unit?: string;
+};
 
 type IngredientOption = {
   id: string;
@@ -30,61 +40,182 @@ type RequestHistoryItem = {
   }>;
 };
 
-export function CreateMaterialRequest({ user }: { user?: unknown }) {
+type StaffRequestUser = {
+  id?: string | null;
+};
+
+type CachedPayload<T> = {
+  savedAt: number;
+  data: T;
+};
+
+const INGREDIENTS_CACHE_TTL_MS = 5 * 60 * 1000;
+const REQUEST_HISTORY_CACHE_TTL_MS = 2 * 60 * 1000;
+
+function mapIngredients(data: IngredientApiItem[]): IngredientOption[] {
+  return data.map((ing) => ({
+    id: String(ing._id ?? ing.item_id ?? crypto.randomUUID()),
+    item_id: String(ing.item_id ?? ""),
+    name: String(ing.item_name ?? ""),
+    stock: Number(ing.current_qty ?? 0),
+    unit: String(ing.unit ?? ""),
+    quantity: "",
+  }));
+}
+
+function isFreshCache(savedAt: number, ttl: number) {
+  return Date.now() - savedAt < ttl;
+}
+
+function readCache<T>(key: string, ttl: number): T | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as CachedPayload<T>;
+    if (!parsed?.savedAt || !isFreshCache(parsed.savedAt, ttl)) {
+      window.sessionStorage.removeItem(key);
+      return null;
+    }
+
+    return parsed.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, data: T) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const payload: CachedPayload<T> = {
+      savedAt: Date.now(),
+      data,
+    };
+    window.sessionStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Ignore cache write failures.
+  }
+}
+
+function clearCache(key: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore cache clear failures.
+  }
+}
+
+export function CreateMaterialRequest({ user }: { user?: StaffRequestUser }) {
   const [activeTab, setActiveTab] = useState<"create" | "history">("create");
   const [requests, setRequests] = useState<RequestHistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingIngredients, setIsLoadingIngredients] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<IngredientOption[]>([]);
 
+  const userCacheKey = user?.id ?? "guest";
+  const ingredientsCacheKey = `staff-request-ingredients:${userCacheKey}`;
+  const historyCacheKey = `staff-request-history:${userCacheKey}`;
+
   useEffect(() => {
+    let ignore = false;
+
+    const cachedIngredients = readCache<IngredientApiItem[]>(ingredientsCacheKey, INGREDIENTS_CACHE_TTL_MS);
+    if (cachedIngredients) {
+      setItems(mapIngredients(cachedIngredients));
+      setIsLoadingIngredients(false);
+      return;
+    }
+
     const fetchIngredients = async () => {
       try {
-        const res = await fetch("/api/ingredients");
+        const res = await fetch("/api/ingredients", { cache: "no-store" });
         if (!res.ok) {
           return;
         }
 
-        const data = await res.json();
-        setItems(
-          data.map((ing: any) => ({
-            id: ing._id,
-            item_id: ing.item_id,
-            name: ing.item_name,
-            stock: ing.current_qty,
-            unit: ing.unit,
-            quantity: "",
-          }))
-        );
+        const data = (await res.json()) as IngredientApiItem[];
+        if (ignore) {
+          return;
+        }
+
+        writeCache(ingredientsCacheKey, data);
+        setItems(mapIngredients(data));
       } catch (error) {
         console.error("Failed to fetch ingredients", error);
+      } finally {
+        if (!ignore) {
+          setIsLoadingIngredients(false);
+        }
       }
     };
 
-    fetchIngredients();
-  }, []);
+    void fetchIngredients();
+
+    return () => {
+      ignore = true;
+    };
+  }, [ingredientsCacheKey]);
 
   useEffect(() => {
     if (activeTab !== "history") {
       return;
     }
 
+    let ignore = false;
+
+    const cachedHistory = readCache<RequestHistoryItem[]>(historyCacheKey, REQUEST_HISTORY_CACHE_TTL_MS);
+    if (cachedHistory) {
+      setRequests(cachedHistory);
+      setIsLoadingHistory(false);
+      return;
+    }
+
     const fetchHistory = async () => {
+      setIsLoadingHistory(true);
+
       try {
-        const res = await fetch("/api/requests");
+        const res = await fetch("/api/requests", { cache: "no-store" });
         if (!res.ok) {
           return;
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as RequestHistoryItem[];
+        if (ignore) {
+          return;
+        }
+
+        writeCache(historyCacheKey, data);
         setRequests(data);
       } catch (error) {
         console.error("Failed to fetch history", error);
+      } finally {
+        if (!ignore) {
+          setIsLoadingHistory(false);
+        }
       }
     };
 
-    fetchHistory();
-  }, [activeTab]);
+    void fetchHistory();
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeTab, historyCacheKey]);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -112,7 +243,7 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     try {
       const payloadItems = selectedItems.map((item) => ({
         item_id: item.item_id,
@@ -130,6 +261,7 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
         return;
       }
 
+      clearCache(historyCacheKey);
       toast.success("ส่งคำขออนุมัติเบิกสำเร็จ");
       setItems((prev) => prev.map((item) => ({ ...item, quantity: "" })));
       setActiveTab("history");
@@ -137,7 +269,7 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
       console.error("Failed to submit request", error);
       toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -187,6 +319,7 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
                     className="bg-slate-50/50 pl-9"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
+                    disabled={isLoadingIngredients}
                   />
                 </div>
               </div>
@@ -200,7 +333,29 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  {filteredItems.length === 0 ? (
+                  {isLoadingIngredients ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                        <Spinner className="size-4" />
+                        <span>กำลังโหลดข้อมูลวัตถุดิบ กรุณารอสักครู่...</span>
+                      </div>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <Skeleton className="h-5 w-56" />
+                            <Skeleton className="h-4 w-40" />
+                          </div>
+                          <div className="flex w-full items-center gap-2 sm:w-auto">
+                            <Skeleton className="h-9 w-full sm:w-24" />
+                            <Skeleton className="h-5 w-10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : filteredItems.length === 0 ? (
                     <div className="py-8 text-center text-slate-500">
                       <Package className="mx-auto mb-2 h-12 w-12 opacity-50" />
                       <p>ไม่พบรายการวัตถุดิบ</p>
@@ -238,11 +393,11 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
               <div className="flex justify-end pt-4">
                 <Button
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={isSubmitting || isLoadingIngredients}
                   className="w-full gap-2 rounded-lg bg-[#c8102e] px-6 text-white shadow-md hover:bg-[#a00c25] sm:w-auto"
                 >
-                  <Send className="h-4 w-4" />
-                  ส่งคำขออนุมัติเบิก
+                  {isSubmitting ? <Spinner className="size-4" /> : <Send className="h-4 w-4" />}
+                  {isSubmitting ? "กำลังส่งคำขอ..." : "ส่งคำขออนุมัติเบิก"}
                 </Button>
               </div>
             </div>
@@ -325,8 +480,11 @@ export function CreateMaterialRequest({ user }: { user?: unknown }) {
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                        {loading ? (
-                          "กำลังโหลดข้อมูล..."
+                        {isLoadingHistory ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Spinner className="size-4" />
+                            <span>กำลังโหลดข้อมูล...</span>
+                          </div>
                         ) : (
                           <div className="py-8 text-center text-slate-500">
                             <History className="mx-auto mb-2 h-12 w-12 opacity-50" />

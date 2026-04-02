@@ -12,6 +12,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/com
 import type { GlobalDashboardData } from "@/lib/types/dashboard";
 
 type StaffShellUser = {
+  id?: string | null;
   role?: string | null;
 };
 
