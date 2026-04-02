@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Camera, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth/auth-client";
@@ -78,19 +79,19 @@ export function ProfileEditDialog({
 
   const email = user?.email || "";
   const role = user?.role || "staff";
-  const roleLabel = role === "manager" ? "เธเธนเนเธเธฑเธ”เธเธฒเธฃ" : role === "store" ? "Store" : "เธเธเธฑเธเธเธฒเธ";
+  const roleLabel = role === "manager" ? "ผู้จัดการ" : role === "store" ? "Store" : "พนักงาน";
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
-      toast.error("เธฃเธญเธเธฃเธฑเธเน€เธเธเธฒเธฐเนเธเธฅเน JPG, PNG, WEBP");
+      toast.error("รองรับเฉพาะไฟล์ JPG, PNG, WEBP");
       return;
     }
 
     if (file.size > AVATAR_MAX_SIZE) {
-      toast.error("เนเธเธฅเนเธ•เนเธญเธเธกเธตเธเธเธฒเธ”เนเธกเนเน€เธเธดเธ 2MB");
+      toast.error("ไฟล์ต้องมีขนาดไม่เกิน 2MB");
       return;
     }
 
@@ -102,23 +103,23 @@ export function ProfileEditDialog({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error("เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ");
+      toast.error("กรุณากรอกชื่อ-นามสกุล");
       return;
     }
 
     if (newPassword || confirmPassword || currentPassword) {
       if (!currentPassword) {
-        toast.error("เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธฃเธซเธฑเธชเธเนเธฒเธเธเธฑเธเธเธธเธเธฑเธ");
+        toast.error("กรุณากรอกรหัสผ่านปัจจุบัน");
         return;
       }
 
       if (newPassword.length < 8) {
-        toast.error("เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเนเธ•เนเธญเธเธกเธตเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ");
+        toast.error("รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร");
         return;
       }
 
       if (newPassword !== confirmPassword) {
-        toast.error("เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเนเนเธกเนเธ•เธฃเธเธเธฑเธ");
+        toast.error("รหัสผ่านใหม่ไม่ตรงกัน");
         return;
       }
     }
@@ -143,7 +144,7 @@ export function ProfileEditDialog({
       );
 
       if (updateRes.error) {
-        toast.error(updateRes.error.message || "เธญเธฑเธเน€เธ”เธ•เนเธเธฃเนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ");
+        toast.error(updateRes.error.message || "อัปเดตโปรไฟล์ไม่สำเร็จ");
         return;
       }
 
@@ -155,7 +156,7 @@ export function ProfileEditDialog({
         });
 
         if (pwRes.error) {
-          toast.error(pwRes.error.message || "เน€เธเธฅเธตเนเธขเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธชเธณเน€เธฃเนเธ");
+          toast.error(pwRes.error.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ");
           return;
         }
       }
@@ -176,10 +177,10 @@ export function ProfileEditDialog({
 
       setImageUrl(finalImageUrl);
       onProfileUpdated?.(updatedUser);
-      toast.success("เธญเธฑเธเน€เธ”เธ•เนเธเธฃเนเธเธฅเนเธชเธณเน€เธฃเนเธ");
+      toast.success("อัปเดตโปรไฟล์สำเร็จ");
       onOpenChange(false);
     } catch {
-      toast.error("เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ” เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน");
+      toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
       setSaving(false);
     }
@@ -199,9 +200,9 @@ export function ProfileEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold">เนเธเนเนเธเนเธเธฃเนเธเธฅเน</DialogTitle>
+          <DialogTitle className="text-lg font-bold">แก้ไขโปรไฟล์</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            เนเธเนเนเธเธเนเธญเธกเธนเธฅเธชเนเธงเธเธ•เธฑเธงเธเธญเธเธเธธเธ“
+            แก้ไขข้อมูลส่วนตัวของคุณ
           </DialogDescription>
         </DialogHeader>
 
@@ -213,7 +214,7 @@ export function ProfileEditDialog({
                 onClick={() => fileInputRef.current?.click()}
               >
                 {displayImage ? (
-                  <img src={displayImage} alt="avatar" className="h-full w-full object-cover" />
+                  <Image src={displayImage} alt="avatar" fill className="object-cover" unoptimized />
                 ) : (
                   <span className="text-lg font-bold text-gray-500">{initials}</span>
                 )}
@@ -232,17 +233,17 @@ export function ProfileEditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">เธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ</Label>
+            <Label className="text-sm font-medium">ชื่อ-นามสกุล</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="เธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ"
+              placeholder="ชื่อ-นามสกุล"
               className="h-9"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">เน€เธเธญเธฃเนเนเธ—เธฃเธจเธฑเธเธ—เน</Label>
+            <Label className="text-sm font-medium">เบอร์โทรศัพท์</Label>
             <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -253,29 +254,29 @@ export function ProfileEditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">เธญเธตเน€เธกเธฅ</Label>
+            <Label className="text-sm font-medium text-muted-foreground">อีเมล</Label>
             <Input value={email} disabled className="h-9 bg-muted/50 text-muted-foreground" />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-muted-foreground">เธชเธดเธ—เธเธดเนเธเธฒเธฃเนเธเนเธเธฒเธ</Label>
+            <Label className="text-sm font-medium text-muted-foreground">สิทธิ์การใช้งาน</Label>
             <Input value={roleLabel} disabled className="h-9 bg-muted/50 text-muted-foreground" />
           </div>
 
           <Separator />
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700">เน€เธเธฅเธตเนเธขเธเธฃเธซเธฑเธชเธเนเธฒเธ</h4>
-            <p className="text-xs text-muted-foreground">เธเธฅเนเธญเธขเธงเนเธฒเธเนเธงเนเธซเธฒเธเนเธกเนเธ•เนเธญเธเธเธฒเธฃเน€เธเธฅเธตเนเธขเธ</p>
+            <h4 className="text-sm font-semibold text-gray-700">เปลี่ยนรหัสผ่าน</h4>
+            <p className="text-xs text-muted-foreground">ปล่อยว่างไว้หากไม่ต้องการเปลี่ยน</p>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">เธฃเธซเธฑเธชเธเนเธฒเธเธเธฑเธเธเธธเธเธฑเธ</Label>
+              <Label className="text-sm font-medium">รหัสผ่านปัจจุบัน</Label>
               <div className="relative">
                 <Input
                   type={showCurrentPw ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="เธฃเธซเธฑเธชเธเนเธฒเธเธเธฑเธเธเธธเธเธฑเธ"
+                  placeholder="รหัสผ่านปัจจุบัน"
                   className="h-9 pr-10"
                 />
                 <button
@@ -290,13 +291,13 @@ export function ProfileEditDialog({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเน</Label>
+                <Label className="text-sm font-medium">รหัสผ่านใหม่</Label>
                 <div className="relative">
                   <Input
                     type={showNewPw ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="เธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเน"
+                    placeholder="รหัสผ่านใหม่"
                     className="h-9 pr-10"
                   />
                   <button
@@ -310,12 +311,12 @@ export function ProfileEditDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">เธขเธทเธเธขเธฑเธเธฃเธซเธฑเธชเธเนเธฒเธเนเธซเธกเน</Label>
+                <Label className="text-sm font-medium">ยืนยันรหัสผ่านใหม่</Label>
                 <Input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="เธขเธทเธเธขเธฑเธ"
+                  placeholder="ยืนยัน"
                   className="h-9"
                 />
               </div>
@@ -330,7 +331,7 @@ export function ProfileEditDialog({
             disabled={saving}
             className="h-9"
           >
-            เธขเธเน€เธฅเธดเธ
+            ยกเลิก
           </Button>
           <Button
             onClick={handleSave}
@@ -338,7 +339,7 @@ export function ProfileEditDialog({
             className="h-9 bg-[#C8102E] text-white hover:bg-[#a50d26]"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            เธเธฑเธเธ—เธถเธ
+            บันทึก
           </Button>
         </div>
       </DialogContent>
