@@ -18,6 +18,7 @@ const SupplierShell = dynamic(
 );
 
 type HomeShellUser = {
+  id?: string | null;
   role?: string | null;
   [key: string]: unknown;
 };

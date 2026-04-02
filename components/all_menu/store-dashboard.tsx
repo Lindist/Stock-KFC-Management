@@ -88,7 +88,13 @@ const statusOptions: Array<{ value: "all" | PurchaseOrderStatus; label: string }
   { value: "arrived", label: "ส่งของแล้ว" },
 ];
 
-export function StoreDashboard({ data }: { data: ManagerPhaseData | null }) {
+export function StoreDashboard({
+  data,
+  userId,
+}: {
+  data: ManagerPhaseData | null;
+  userId?: string | null;
+}) {
   const { managerData, updateManagerData } = useManagerDataCache();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PurchaseOrderStatus>("all");
@@ -97,7 +103,10 @@ export function StoreDashboard({ data }: { data: ManagerPhaseData | null }) {
   const [updatingPoId, setUpdatingPoId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState("");
 
-  const orders = managerData?.purchaseOrders ?? data?.purchaseOrders ?? [];
+  const orders = useMemo(() => {
+    const source = managerData?.purchaseOrders ?? data?.purchaseOrders ?? [];
+    return userId ? source.filter((item) => item.approverId === userId) : source;
+  }, [data?.purchaseOrders, managerData?.purchaseOrders, userId]);
 
   const metrics = useMemo(
     () => ({

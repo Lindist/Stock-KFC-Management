@@ -124,14 +124,20 @@ async function resolveUserNames(userIds: string[]) {
   return userMap;
 }
 
-export async function getManagerPhaseData(): Promise<ManagerPhaseData> {
+export async function getManagerPhaseData(options?: {
+  purchaseOrderApproverId?: string;
+}): Promise<ManagerPhaseData> {
   await connectDB();
+
+  const purchaseOrderFilter = options?.purchaseOrderApproverId
+    ? { approver_id: options.purchaseOrderApproverId }
+    : {};
 
   const [ingredients, stockDeductions, alerts, purchaseOrders] = await Promise.all([
     Ingredient.find({}).sort({ item_id: 1 }),
     StockDeduction.find({}).sort({ deduct_time: -1 }),
     LowStockAlert.find({}).sort({ alert_time: -1 }),
-    PurchaseOrder.find({}).sort({ createdAt: -1 }),
+    PurchaseOrder.find(purchaseOrderFilter).sort({ createdAt: -1 }),
   ]);
 
   const ingredientMap = new Map(

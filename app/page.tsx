@@ -14,8 +14,10 @@ export default async function Home() {
   const user = session.user;
   const dashboardData = await getGlobalDashboardData();
   const managerData =
-    user.role === "manager" || user.role === "store" || user.role === "admin"
+    user.role === "manager" || user.role === "admin"
       ? await getManagerPhaseData()
+      : user.role === "store"
+        ? await getManagerPhaseData({ purchaseOrderApproverId: user.id })
       : null;
 
   return <HomeShell user={user} dashboardData={dashboardData} managerData={managerData} />;

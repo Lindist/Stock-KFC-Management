@@ -13,8 +13,10 @@ export async function GET() {
     const role = session.user.role;
     const dashboardData = await getGlobalDashboardData();
     const managerData =
-      role === "manager" || role === "store" || role === "admin"
+      role === "manager" || role === "admin"
         ? await getManagerPhaseData()
+        : role === "store"
+          ? await getManagerPhaseData({ purchaseOrderApproverId: session.user.id })
         : null;
 
     return NextResponse.json({

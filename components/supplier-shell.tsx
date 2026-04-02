@@ -14,6 +14,7 @@ import type { GlobalDashboardData } from "@/lib/types/dashboard";
 import type { ManagerPhaseData } from "@/lib/types/manager";
 
 type SupplierShellUser = {
+  id?: string | null;
   role?: string | null;
 };
 
@@ -94,7 +95,7 @@ export function SupplierShell({
         onTabChange={setDashboardTab}
       />
     ),
-    "store-dashboard": <StoreDashboard data={managerData} />,
+    "store-dashboard": <StoreDashboard data={managerData} userId={user?.id ?? null} />,
   };
 
   return (

@@ -12,7 +12,9 @@ export async function GET() {
     }
 
     await connectDB();
-    const orders = await PurchaseOrder.find({}).sort({ createdAt: -1 });
+    const orders = await PurchaseOrder.find(
+      session.user.role === "store" ? { approver_id: session.user.id } : {}
+    ).sort({ createdAt: -1 });
     return NextResponse.json(orders);
   } catch (error) {
     console.error("Error fetching purchase orders:", error);

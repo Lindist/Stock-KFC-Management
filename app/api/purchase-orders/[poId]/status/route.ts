@@ -31,6 +31,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
     }
 
+    if (session.user.role === "store" && order.approver_id !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ingredient = await Ingredient.findOne({ item_id: order.item_id });
     if (!ingredient) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
