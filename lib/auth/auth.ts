@@ -5,6 +5,15 @@ import { redirect } from "next/navigation";
 import { MongoClient } from "mongodb";
 
 const uri = process.env.MONGODB_URI!;
+const staticBaseURL = process.env.BETTER_AUTH_URL?.trim();
+
+function toOrigin(url: string) {
+    try {
+        return new URL(url).origin;
+    } catch {
+        return null;
+    }
+}
 
 // Singleton MongoClient — ป้องกัน connection ซ้ำใน Next.js dev hot-reload
 let mongoClient: MongoClient;
@@ -28,16 +37,40 @@ const client = getMongoClient();
 // ไม่ต้อง await client.connect() เพราะ mongodbAdapter จัดการให้
 const db = client.db();
 
-const getBaseURL = () => {
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`;
-    }
-    return process.env.BETTER_AUTH_URL || "http://localhost:3000";
-};
+const allowedHosts = Array.from(
+    new Set(
+        [
+            "localhost:3000",
+            "localhost:3001",
+            process.env.VERCEL_URL,
+            process.env.VERCEL_PROJECT_PRODUCTION_URL,
+            "*.vercel.app",
+        ].filter((value): value is string => Boolean(value))
+    )
+);
+
+const trustedOrigins = Array.from(
+    new Set(
+        [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "https://*.vercel.app",
+            staticBaseURL ? toOrigin(staticBaseURL) : null,
+            process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+            process.env.VERCEL_PROJECT_PRODUCTION_URL
+                ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+                : null,
+        ].filter((value): value is string => Boolean(value))
+    )
+);
 
 export const auth = betterAuth({
     secret: process.env.BETTER_AUTH_SECRET!,
-    baseURL: getBaseURL(),
+    baseURL: staticBaseURL || {
+        allowedHosts,
+        protocol: process.env.NODE_ENV === "development" ? "http" : "https",
+    },
+    trustedOrigins,
     database: mongodbAdapter(db),
     session: {
         cookieCache: {

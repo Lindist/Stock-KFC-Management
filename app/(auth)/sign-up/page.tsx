@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Camera, ChevronLeft, Settings, Store, Users } from "lucide-react";
 import { toast } from "sonner";
 import { authClient, signUp } from "@/lib/auth/auth-client";
+import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_SIZE, fileToDataUrl } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,9 @@ import { Label } from "@/components/ui/label";
 type Role = "manager" | "store" | "staff";
 
 const ROLES: { value: Role; label: string; desc: string; Icon: React.ElementType }[] = [
-  { value: "staff", label: "พนักงาน", desc: "เบิกวัตถุดิบและติดตามงานประจำวัน", Icon: Users },
-  { value: "store", label: "Store", desc: "จัดการใบสั่งซื้อและสถานะการส่งของ", Icon: Store },
-  { value: "manager", label: "ผู้จัดการ", desc: "ดูแลภาพรวมคลังและอนุมัติรายการ", Icon: Settings },
+  { value: "staff", label: "เธเธเธฑเธเธเธฒเธ", desc: "เน€เธเธดเธเธงเธฑเธ•เธ–เธธเธ”เธดเธเนเธฅเธฐเธ•เธดเธ”เธ•เธฒเธกเธเธฒเธเธเธฃเธฐเธเธณเธงเธฑเธ", Icon: Users },
+  { value: "store", label: "Store", desc: "เธเธฑเธ”เธเธฒเธฃเนเธเธชเธฑเนเธเธเธทเนเธญเนเธฅเธฐเธชเธ–เธฒเธเธฐเธเธฒเธฃเธชเนเธเธเธญเธ", Icon: Store },
+  { value: "manager", label: "เธเธนเนเธเธฑเธ”เธเธฒเธฃ", desc: "เธ”เธนเนเธฅเธ เธฒเธเธฃเธงเธกเธเธฅเธฑเธเนเธฅเธฐเธญเธเธธเธกเธฑเธ•เธดเธฃเธฒเธขเธเธฒเธฃ", Icon: Settings },
 ];
 
 export default function SignUpPage() {
@@ -40,13 +41,13 @@ export default function SignUpPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      toast.error("รองรับเฉพาะไฟล์ JPG, PNG, WEBP");
+    if (!AVATAR_ALLOWED_TYPES.includes(file.type)) {
+      toast.error("เธฃเธญเธเธฃเธฑเธเน€เธเธเธฒเธฐเนเธเธฅเน JPG, PNG, WEBP");
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("ไฟล์ต้องมีขนาดไม่เกิน 2MB");
+    if (file.size > AVATAR_MAX_SIZE) {
+      toast.error("เนเธเธฅเนเธ•เนเธญเธเธกเธตเธเธเธฒเธ”เนเธกเนเน€เธเธดเธ 2MB");
       return;
     }
 
@@ -60,12 +61,12 @@ export default function SignUpPage() {
     event.preventDefault();
 
     if (!form.full_name.trim() || !form.username.trim() || !form.password) {
-      toast.error("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
+      toast.error("เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเนเธญเธกเธนเธฅเธ—เธตเนเธเธณเน€เธเนเธเนเธซเนเธเธฃเธเธ–เนเธงเธ");
       return;
     }
 
     if (form.password.length < 8) {
-      toast.error("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
+      toast.error("เธฃเธซเธฑเธชเธเนเธฒเธเธ•เนเธญเธเธกเธตเธญเธขเนเธฒเธเธเนเธญเธข 8 เธ•เธฑเธงเธญเธฑเธเธฉเธฃ");
       return;
     }
 
@@ -75,21 +76,7 @@ export default function SignUpPage() {
       let imageUrl = "";
 
       if (avatarFile) {
-        const formData = new FormData();
-        formData.append("file", avatarFile);
-
-        const uploadRes = await fetch("/api/upload-avatar", {
-          method: "POST",
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          toast.error(uploadData.error || "อัปโหลดรูปไม่สำเร็จ");
-          return;
-        }
-
-        imageUrl = uploadData.url;
+        imageUrl = await fileToDataUrl(avatarFile);
       }
 
       const email = `${form.username.trim()}@kfc.local`;
@@ -104,7 +91,7 @@ export default function SignUpPage() {
       } as Parameters<typeof signUp.email>[0]);
 
       if (error) {
-        toast.error(error.message || "สมัครสมาชิกไม่สำเร็จ");
+        toast.error(error.message || "เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธเนเธกเนเธชเธณเน€เธฃเนเธ");
         return;
       }
 
@@ -118,10 +105,10 @@ export default function SignUpPage() {
         }
       }
 
-      toast.success("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+      toast.success("เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธเธชเธณเน€เธฃเนเธ! เธเธฃเธธเธ“เธฒเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ");
       router.push("/sign-in");
     } catch {
-      toast.error("เกิดข้อผิดพลาด กรุณาลองใหม่");
+      toast.error("เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ” เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเน");
     } finally {
       setLoading(false);
     }
@@ -131,9 +118,9 @@ export default function SignUpPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#f0f0f0] p-4">
       <Card className="w-full max-w-md gap-0 rounded-2xl py-0 shadow-xl">
         <CardHeader className="flex flex-col items-center gap-1 rounded-t-2xl border-b-0 bg-[#C8102E] px-8 py-7">
-          <CardTitle className="text-center text-xl font-bold text-white">สมัครสมาชิก</CardTitle>
+          <CardTitle className="text-center text-xl font-bold text-white">เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธ</CardTitle>
           <CardDescription className="text-center text-sm text-white/80">
-            สร้างบัญชีเพื่อเข้าใช้งานระบบ KFC StockFlow
+            เธชเธฃเนเธฒเธเธเธฑเธเธเธตเน€เธเธทเนเธญเน€เธเนเธฒเนเธเนเธเธฒเธเธฃเธฐเธเธ KFC StockFlow
           </CardDescription>
         </CardHeader>
 
@@ -151,7 +138,7 @@ export default function SignUpPage() {
                     <div className="flex flex-col items-center gap-1">
                       <Camera className="h-6 w-6 text-gray-400 transition-colors group-hover:text-[#C8102E]" />
                       <span className="text-[9px] text-gray-400 transition-colors group-hover:text-[#C8102E]">
-                        อัปโหลดรูป
+                        เธญเธฑเธเนเธซเธฅเธ”เธฃเธนเธ
                       </span>
                     </div>
                   )}
@@ -184,28 +171,28 @@ export default function SignUpPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="signup-fullname" className="font-medium text-gray-700">
-                ชื่อ-นามสกุล
+                เธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ
               </Label>
               <Input
                 id="signup-fullname"
                 type="text"
                 value={form.full_name}
                 onChange={(event) => set("full_name", event.target.value)}
-                placeholder="เช่น สมชาย ใจดี"
+                placeholder="เน€เธเนเธ เธชเธกเธเธฒเธข เนเธเธ”เธต"
                 className="h-10 rounded-lg border-gray-300 focus-visible:border-[#C8102E] focus-visible:ring-[#C8102E]/20"
               />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="signup-phone" className="font-medium text-gray-700">
-                เบอร์โทรศัพท์
+                เน€เธเธญเธฃเนเนเธ—เธฃเธจเธฑเธเธ—เน
               </Label>
               <Input
                 id="signup-phone"
                 type="tel"
                 value={form.phone}
                 onChange={(event) => set("phone", event.target.value)}
-                placeholder="เช่น 08X-XXX-XXXX"
+                placeholder="เน€เธเนเธ 08X-XXX-XXXX"
                 maxLength={10}
                 className="h-10 rounded-lg border-gray-300 focus-visible:border-[#C8102E] focus-visible:ring-[#C8102E]/20"
               />
@@ -214,7 +201,7 @@ export default function SignUpPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="signup-username" className="font-medium text-gray-700">
-                  ชื่อผู้ใช้งาน
+                  เธเธทเนเธญเธเธนเนเนเธเนเธเธฒเธ
                 </Label>
                 <Input
                   id="signup-username"
@@ -228,7 +215,7 @@ export default function SignUpPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="signup-password" className="font-medium text-gray-700">
-                  รหัสผ่าน
+                  เธฃเธซเธฑเธชเธเนเธฒเธ
                 </Label>
                 <Input
                   id="signup-password"
@@ -243,7 +230,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="font-medium text-gray-700">สิทธิ์การใช้งาน</Label>
+              <Label className="font-medium text-gray-700">เธชเธดเธ—เธเธดเนเธเธฒเธฃเนเธเนเธเธฒเธ</Label>
               <div className="grid grid-cols-3 gap-2">
                 {ROLES.map(({ value, label, desc, Icon }) => (
                   <button
@@ -283,7 +270,7 @@ export default function SignUpPage() {
               disabled={loading}
               className="h-10 w-full rounded-lg bg-[#C8102E] font-semibold text-white transition-colors duration-200 hover:bg-[#a50d26]"
             >
-              {loading ? "กำลังสมัครสมาชิก..." : "สมัครสมาชิก"}
+              {loading ? "เธเธณเธฅเธฑเธเธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธ..." : "เธชเธกเธฑเธเธฃเธชเธกเธฒเธเธดเธ"}
             </Button>
 
             <div className="pt-2 text-center">
@@ -292,7 +279,7 @@ export default function SignUpPage() {
                 className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-[#C8102E]"
               >
                 <ChevronLeft className="h-4 w-4" />
-                กลับไปเข้าสู่ระบบ
+                เธเธฅเธฑเธเนเธเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ
               </Link>
             </div>
           </form>
