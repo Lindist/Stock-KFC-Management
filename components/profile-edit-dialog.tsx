@@ -18,11 +18,11 @@ import {
 } from "@/components/ui/dialog";
 
 type DialogUser = {
-  name?: string;
-  phone?: string;
-  image?: string;
-  email?: string;
-  role?: string;
+  name?: string | null;
+  phone?: string | null;
+  image?: string | null;
+  email?: string | null;
+  role?: string | null;
   [key: string]: unknown;
 };
 
